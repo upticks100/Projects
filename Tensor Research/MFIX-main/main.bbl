@@ -1,0 +1,245 @@
+%% BioMed_Central_Bib_Style_v1.01
+
+\begin{thebibliography}{15}
+% BibTex style file: bmc-mathphys.bst (version 2.1), 2014-07-24
+\ifx \bisbn   \undefined \def \bisbn  #1{ISBN #1}\fi
+\ifx \binits  \undefined \def \binits#1{#1}\fi
+\ifx \bauthor  \undefined \def \bauthor#1{#1}\fi
+\ifx \batitle  \undefined \def \batitle#1{#1}\fi
+\ifx \bjtitle  \undefined \def \bjtitle#1{#1}\fi
+\ifx \bvolume  \undefined \def \bvolume#1{\textbf{#1}}\fi
+\ifx \byear  \undefined \def \byear#1{#1}\fi
+\ifx \bissue  \undefined \def \bissue#1{#1}\fi
+\ifx \bfpage  \undefined \def \bfpage#1{#1}\fi
+\ifx \blpage  \undefined \def \blpage #1{#1}\fi
+\ifx \burl  \undefined \def \burl#1{\textsf{#1}}\fi
+\ifx \doiurl  \undefined \def \doiurl#1{\url{https://doi.org/#1}}\fi
+\ifx \betal  \undefined \def \betal{\textit{et al.}}\fi
+\ifx \binstitute  \undefined \def \binstitute#1{#1}\fi
+\ifx \binstitutionaled  \undefined \def \binstitutionaled#1{#1}\fi
+\ifx \bctitle  \undefined \def \bctitle#1{#1}\fi
+\ifx \beditor  \undefined \def \beditor#1{#1}\fi
+\ifx \bpublisher  \undefined \def \bpublisher#1{#1}\fi
+\ifx \bbtitle  \undefined \def \bbtitle#1{#1}\fi
+\ifx \bedition  \undefined \def \bedition#1{#1}\fi
+\ifx \bseriesno  \undefined \def \bseriesno#1{#1}\fi
+\ifx \blocation  \undefined \def \blocation#1{#1}\fi
+\ifx \bsertitle  \undefined \def \bsertitle#1{#1}\fi
+\ifx \bsnm \undefined \def \bsnm#1{#1}\fi
+\ifx \bsuffix \undefined \def \bsuffix#1{#1}\fi
+\ifx \bparticle \undefined \def \bparticle#1{#1}\fi
+\ifx \barticle \undefined \def \barticle#1{#1}\fi
+\bibcommenthead
+\ifx \bconfdate \undefined \def \bconfdate #1{#1}\fi
+\ifx \botherref \undefined \def \botherref #1{#1}\fi
+\ifx \url \undefined \def \url#1{\textsf{#1}}\fi
+\ifx \bchapter \undefined \def \bchapter#1{#1}\fi
+\ifx \bbook \undefined \def \bbook#1{#1}\fi
+\ifx \bcomment \undefined \def \bcomment#1{#1}\fi
+\ifx \oauthor \undefined \def \oauthor#1{#1}\fi
+\ifx \citeauthoryear \undefined \def \citeauthoryear#1{#1}\fi
+\ifx \endbibitem  \undefined \def \endbibitem {}\fi
+\ifx \bconflocation  \undefined \def \bconflocation#1{#1}\fi
+\ifx \arxivurl  \undefined \def \arxivurl#1{\textsf{#1}}\fi
+\csname PreBibitemsHook\endcsname
+
+%%% 1
+\bibitem[\protect\citeauthoryear{Phillips and
+  Ormsby}{2016}]{phillips2016industry}
+\begin{barticle}
+\bauthor{\bsnm{Phillips}, \binits{R.L.}},
+\bauthor{\bsnm{Ormsby}, \binits{R.}}:
+\batitle{Industry classification schemes: An analysis and review.}
+\bjtitle{Journal of Business \& Finance Librarianship,}
+\bvolume{21}(\bissue{1}),
+\bfpage{1}--\blpage{25}
+(\byear{2016})
+\end{barticle}
+\endbibitem
+
+%%% 2
+\bibitem[\protect\citeauthoryear{Frey and Dueck}{2007}]{frey2007clustering}
+\begin{barticle}
+\bauthor{\bsnm{Frey}, \binits{B.J.}},
+\bauthor{\bsnm{Dueck}, \binits{D.}}:
+\batitle{Clustering by passing messages between data points.}
+\bjtitle{Science,}
+\bvolume{315}(\bissue{5814}),
+\bfpage{972}--\blpage{976}
+(\byear{2007})
+\end{barticle}
+\endbibitem
+
+%%% 3
+\bibitem[\protect\citeauthoryear{Dueck}{2009}]{dueck2009affinity}
+\begin{botherref}
+\oauthor{\bsnm{Dueck}, \binits{D.}}:
+Affinity propagation: Clustering data by passing messages.
+PhD thesis,
+University of Toronto
+(2009)
+\end{botherref}
+\endbibitem
+
+%%% 4
+\bibitem[\protect\citeauthoryear{Dean and Dunsmuir}{2016}]{dean2016dangers}
+\begin{barticle}
+\bauthor{\bsnm{Dean}, \binits{R.T.}},
+\bauthor{\bsnm{Dunsmuir}, \binits{W.T.}}:
+\batitle{Dangers and uses of cross-correlation in analyzing time series in
+  perception, performance, movement, and neuroscience: The importance of
+  constructing transfer function autoregressive models.}
+\bjtitle{Behavior Research Methods,}
+\bvolume{48}(\bissue{2}),
+\bfpage{783}--\blpage{802}
+(\byear{2016})
+\end{barticle}
+\endbibitem
+
+%%% 5
+\bibitem[\protect\citeauthoryear{Gretton and Gy{{\"o}}rfi}{2010}]{gretton10a}
+\begin{barticle}
+\bauthor{\bsnm{Gretton}, \binits{A.}},
+\bauthor{\bsnm{Gy{{\"o}}rfi}, \binits{L.}}:
+\batitle{Consistent nonparametric tests of independence.}
+\bjtitle{Journal of Machine Learning Research,}
+\bvolume{11}(\bissue{46}),
+\bfpage{1391}--\blpage{1423}
+(\byear{2010})
+\end{barticle}
+\endbibitem
+
+%%% 6
+\bibitem[\protect\citeauthoryear{Gretton and
+  Gy{\"o}rfi}{2008}]{gretton2008nonparametric}
+\begin{bchapter}
+\bauthor{\bsnm{Gretton}, \binits{A.}},
+\bauthor{\bsnm{Gy{\"o}rfi}, \binits{L.}}:
+\bctitle{Nonparametric independence tests: Space partitioning and kernel
+  approaches.}
+In: \bbtitle{International Conference on Algorithmic Learning Theory},
+pp. \bfpage{183}--\blpage{198}
+(\byear{2008}).
+\bcomment{Springer}
+\end{bchapter}
+\endbibitem
+
+%%% 7
+\bibitem[\protect\citeauthoryear{Degutis and
+  Novickyt{\.e}}{2014}]{degutis2014efficient}
+\begin{barticle}
+\bauthor{\bsnm{Degutis}, \binits{A.}},
+\bauthor{\bsnm{Novickyt{\.e}}, \binits{L.}}:
+\batitle{The efficient market hypothesis: A critical review of literature and
+  methodology.}
+\bjtitle{Ekonomika,}
+\bvolume{93},
+\bfpage{7}--\blpage{23}
+(\byear{2014})
+\end{barticle}
+\endbibitem
+
+%%% 8
+\bibitem[\protect\citeauthoryear{Gabriela~{\u{g}}i{\.G}an}{2015}]{gabriela2015efficient}
+\begin{barticle}
+\bauthor{\bsnm{Gabriela~{\u{g}}i{\.G}an}, \binits{A.}}:
+\batitle{The efficient market hypothesis: Review of specialized literature and
+  empirical research.}
+\bjtitle{Procedia Economics and Finance,}
+\bvolume{32},
+\bfpage{442}--\blpage{449}
+(\byear{2015})
+\end{barticle}
+\endbibitem
+
+%%% 9
+\bibitem[\protect\citeauthoryear{Naseer and Tariq}{2015}]{naseer2015efficient}
+\begin{barticle}
+\bauthor{\bsnm{Naseer}, \binits{M.}},
+\bauthor{\bsnm{Tariq}, \binits{B.D.}}:
+\batitle{The efficient market hypothesis: A critical review of the literature.}
+\bjtitle{IUP Journal of Financial Risk Management,}
+\bvolume{12}(\bissue{4}),
+\bfpage{48}--\blpage{63}
+(\byear{2015})
+\end{barticle}
+\endbibitem
+
+%%% 10
+\bibitem[\protect\citeauthoryear{Lehmann}{1990}]{lehmann1990fads}
+\begin{barticle}
+\bauthor{\bsnm{Lehmann}, \binits{B.N.}}:
+\batitle{Fads, martingales, and market efficiency.}
+\bjtitle{The Quarterly Journal of Economics,}
+\bvolume{105}(\bissue{1}),
+\bfpage{1}--\blpage{28}
+(\byear{1990})
+\end{barticle}
+\endbibitem
+
+%%% 11
+\bibitem[\protect\citeauthoryear{Stein}{1989}]{stein1989efficient}
+\begin{barticle}
+\bauthor{\bsnm{Stein}, \binits{J.C.}}:
+\batitle{Efficient capital markets, inefficient firms: A model of myopic
+  corporate behavior.}
+\bjtitle{The Quarterly Journal of Economics,}
+\bvolume{104}(\bissue{4}),
+\bfpage{655}--\blpage{669}
+(\byear{1989})
+\end{barticle}
+\endbibitem
+
+%%% 12
+\bibitem[\protect\citeauthoryear{Shi and Delacroix}{2018}]{shi2018should}
+\begin{barticle}
+\bauthor{\bsnm{Shi}, \binits{S.}},
+\bauthor{\bsnm{Delacroix}, \binits{A.}}:
+\batitle{Should buyers or sellers organize trade in a frictional market?.}
+\bjtitle{The Quarterly Journal of Economics,}
+\bvolume{133}(\bissue{4}),
+\bfpage{2171}--\blpage{2214}
+(\byear{2018})
+\end{barticle}
+\endbibitem
+
+%%% 13
+\bibitem[\protect\citeauthoryear{Jensen}{1978}]{jensen1978some}
+\begin{barticle}
+\bauthor{\bsnm{Jensen}, \binits{M.C.}}:
+\batitle{Some anomalous evidence regarding market efficiency.}
+\bjtitle{Journal of Financial Economics,}
+\bvolume{6}(\bissue{2/3}),
+\bfpage{95}--\blpage{101}
+(\byear{1978})
+\end{barticle}
+\endbibitem
+
+%%% 14
+\bibitem[\protect\citeauthoryear{Lo and MacKinlay}{1988}]{lo1988stock}
+\begin{barticle}
+\bauthor{\bsnm{Lo}, \binits{A.W.}},
+\bauthor{\bsnm{MacKinlay}, \binits{A.C.}}:
+\batitle{Stock market prices do not follow random walks: Evidence from a simple
+  specification test.}
+\bjtitle{The Review of Financial Studies,}
+\bvolume{1}(\bissue{1}),
+\bfpage{41}--\blpage{66}
+(\byear{1988})
+\end{barticle}
+\endbibitem
+
+%%% 15
+\bibitem[\protect\citeauthoryear{Kirchg{\"a}ssner
+  et~al.}{2012}]{kirchgassner2012introduction}
+\begin{bbook}
+\bauthor{\bsnm{Kirchg{\"a}ssner}, \binits{G.}},
+\bauthor{\bsnm{Wolters}, \binits{J.}},
+\bauthor{\bsnm{Hassler}, \binits{U.}}:
+\bbtitle{Introduction to Modern Time Series Analysis.}
+\bpublisher{Springer}, \blocation{???}
+(\byear{2012})
+\end{bbook}
+\endbibitem
+
+\end{thebibliography}

@@ -1,0 +1,68 @@
+This is BibTeX, Version 0.99d (TeX Live 2024)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: main.aux
+The style file: sn-mathphys-num.bst
+Reallocated glb_str_ptr (elt_size=4) to 20 items from 10.
+Reallocated global_strs (elt_size=200001) to 20 items from 10.
+Reallocated glb_str_end (elt_size=4) to 20 items from 10.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated wiz_functions (elt_size=4) to 6000 items from 3000.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Database file #1: references.bib
+Reallocated wiz_functions (elt_size=4) to 9000 items from 6000.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+Reallocated singl_function (elt_size=4) to 100 items from 50.
+You've used 15 entries,
+            7480 wiz_defined-function locations,
+            1280 strings with 12095 characters,
+and the built_in function-call counts, 115143 in all, are:
+= -- 20021
+> -- 465
+< -- 274
++ -- 11250
+- -- 88
+* -- 3285
+:= -- 20393
+add.period$ -- 16
+call.type$ -- 15
+change.case$ -- 95
+chr.to.int$ -- 717
+cite$ -- 15
+duplicate$ -- 650
+empty$ -- 2441
+format.name$ -- 263
+if$ -- 29578
+int.to.chr$ -- 1
+int.to.str$ -- 27
+missing$ -- 0
+newline$ -- 234
+num.names$ -- 75
+pop$ -- 243
+preamble$ -- 1
+purify$ -- 71
+quote$ -- 0
+skip$ -- 12466
+stack$ -- 0
+substring$ -- 10514
+swap$ -- 392
+text.length$ -- 181
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 656
+warning$ -- 0
+while$ -- 394
+width$ -- 0
+write$ -- 322

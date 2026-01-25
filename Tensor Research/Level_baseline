@@ -1,0 +1,61 @@
+"""
+Benchmark Evaluator: Naive Persistence & Historical Mean
+Goal: Establish the 'Floor' R2 for the Holdout Set
+"""
+import joblib
+import numpy as np
+from pathlib import Path
+
+# --- DYNAMIC PATH FIX ---
+# This points to the tensor_cache folder inside your 'Code for paper' directory
+CACHE_DIR = Path("/student/mcnama53/Documents/Tensor Research/Code for paper/tensor_cache")
+
+FILES = ["tensor_L2_R40_20_2.pkl", "tensor_L4_R40_20_4.pkl"]
+
+def get_r2(y_true, y_pred, mask):
+    # Ensure numpy arrays and flatten
+    y_t = np.array(y_true).flatten()
+    y_p = np.array(y_pred).flatten()
+    m = np.array(mask).flatten()
+    
+    idx = m > 0
+    if idx.sum() < 100: return np.nan
+    
+    clean_t, clean_p = y_t[idx], y_p[idx]
+    
+    # SST = Sum of Squares Total
+    sst = np.sum((clean_t - np.mean(clean_t))**2)
+    if sst < 1e-8: return np.nan
+    
+    # SSR = Sum of Squares Residual
+    ssr = np.sum((clean_t - clean_p)**2)
+    return 1.0 - (ssr / sst)
+
+print("--- STARTING BENCHMARK EVALUATION ---")
+
+for fname in FILES:
+    file_path = CACHE_DIR / fname
+    if not file_path.exists():
+        print(f"!! Skipping {fname}: File not found at {file_path}")
+        continue
+        
+    data = joblib.load(file_path)
+    X, Y, M = data["X"], data["Y"], data["Mask"]
+    
+    # Reserve last 20% for Holdout
+    split_idx = int(0.8 * len(X))
+    X_te, Y_te, M_te = X[split_idx:], Y[split_idx:], M[split_idx:]
+    
+    # 1. NAIVE PERSISTENCE (Lag-1)
+    # The 'current' value is the last slice of the lag dimension (index -1)
+    y_persistence = X_te[:, :, :, -1] 
+    r2_pers = get_r2(Y_te, y_persistence, M_te)
+    
+    # 2. HISTORICAL WINDOW MEAN (Moving Average over L quarters)
+    y_hist_mean = np.mean(X_te, axis=-1)
+    r2_hist = get_r2(Y_te, y_hist_mean, M_te)
+    
+    print(f"\nResults for {fname}:")
+    print(f"  Holdout Samples:    {len(Y_te)}")
+    print(f"  Lag-1 Persistence:  {r2_pers:.6f}")
+    print(f"  Historical Mean:    {r2_hist:.6f}")

@@ -1,0 +1,48 @@
+--- Run Start: 2025-12-02 09:42:19.205327 ---
+--- Loading & Cleaning Data ---
+Normalizing features (Z-Score)...
+--- Building Raw Tensor ---
+
+--- Starting Grid Search: 16 Combinations ---
+
+[DATA BUILD] Building Dataset: Lookback=2, ImputeRank=20...
+  Dataset stats: train_windows=189, test_windows=48
+  Model: Rank=15, Reg=0.8 -> Val R2: 0.5780
+  Model: Rank=15, Reg=1.0 -> Val R2: 0.5809
+  Model: Rank=18, Reg=0.8 -> Val R2: 0.5237
+  Model: Rank=18, Reg=1.0 -> Val R2: 0.5504
+
+[DATA BUILD] Building Dataset: Lookback=4, ImputeRank=10...
+  Dataset stats: train_windows=188, test_windows=47
+  Model: Rank=15, Reg=0.8 -> Val R2: 0.5619
+  Model: Rank=15, Reg=1.0 -> Val R2: 0.5943
+  Model: Rank=18, Reg=0.8 -> Val R2: 0.5211
+  Model: Rank=18, Reg=1.0 -> Val R2: 0.5392
+
+[DATA BUILD] Building Dataset: Lookback=2, ImputeRank=10...
+  Dataset stats: train_windows=189, test_windows=48
+  Model: Rank=15, Reg=0.8 -> Val R2: 0.5715
+  Model: Rank=15, Reg=1.0 -> Val R2: 0.5848
+  Model: Rank=18, Reg=0.8 -> Val R2: 0.5554
+  Model: Rank=18, Reg=1.0 -> Val R2: 0.5698
+
+[DATA BUILD] Building Dataset: Lookback=4, ImputeRank=20...
+  Dataset stats: train_windows=188, test_windows=47
+  Model: Rank=15, Reg=0.8 -> Val R2: 0.5607
+  Model: Rank=15, Reg=1.0 -> Val R2: 0.5715
+  Model: Rank=18, Reg=0.8 -> Val R2: 0.5281
+  Model: Rank=18, Reg=1.0 -> Val R2: 0.5526
+
+--- CHAMPION SELECTED: {'L': 4, 'RANK_IMPUTE': 10, 'RANK_REGRESS': 15, 'REG_W': 1.0} ---
+Training Optimized Ridge Benchmark...
+Best Ridge Alpha: 100.0
+0.6604
+
+========================================
+FINAL TEST RESULTS
+========================================
+1. Naive Baseline: 0.1492
+2. Best Ridge:     0.6604
+3. Best Tensor:    0.3603
+----------------------------------------
+FAIL. Check 'reg_W' or 'L' params.

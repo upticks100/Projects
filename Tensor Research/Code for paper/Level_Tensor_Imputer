@@ -1,0 +1,166 @@
+# %%
+# --- Tensor Imputation (UNNORMALIZED / LEVELS VERSION) --- 
+# Goal: Create a cache that preserves magnitude (Log-Levels) 
+# so we can show the high "Persistence R2" for the professor.
+
+import os
+import numpy as np
+import pandas as pd
+import joblib
+from pathlib import Path
+from joblib import Parallel, delayed
+import tensorly as tl
+from tensorly.decomposition import tucker
+from tensorly.tucker_tensor import tucker_to_tensor
+
+# --- CONFIG ---
+START_DATE = "2005-01-31"
+END_DATE   = "2024-12-31"
+SEED       = 42
+
+# The Top 49 Tickers (Same as your main experiment)
+TARGET_TICKERS = [
+    "NVDA","AAPL","MSFT","AMZN","GOOGL","AVGO","META","TSLA","BRK.B","LLY","WMT",
+    "JPM","V","ORCL","JNJ","MA","XOM","NFLX","COST","ABBV","PLTR","BAC","HD","AMD",
+    "PG","GE","KO","CSCO","CVX","UNH","IBM","MS","WFC","CAT","MU","MRK","AXP","GS",
+    "PM","RTX","TMUS","ABT","MCD","TMO","CRM","PEP","ISRG","APP","AMAT"
+]
+
+FEATURES = [
+    "aoq", "aqaq", "atq", "ltq", "ceqq", "cheq", "ciq", "cogsq", "dlcq", "dlttq", 
+    "epsfxq", "epspxq", "ibq", "invtq", "intanq", "mibq", "nopiq", "oiadpq", 
+    "piq", "ppentq", "pstkq", "rectq", "txtq", "xidoq"
+]
+
+# We need both lag settings to match your "Grand Prix" tuner
+CONFIGS_TO_GENERATE = [
+    (2, [40, 20, 2]),  
+    (4, [40, 20, 4]), 
+]
+
+OUTPUT_DIR = Path(__file__).resolve().parent / "tensor_cache"
+os.makedirs(OUTPUT_DIR, exist_ok=True)
+
+# --- DATA LOADING ---
+def get_levels_data():
+    print("Loading Raw Data...")
+    root = Path(__file__).resolve().parent
+    df = pd.read_csv(root / "90-25_Q_Fundamentals.csv")
+    df["datadate"] = pd.to_datetime(df["datadate"])
+    
+    # Filter Tickers
+    mapping = pd.read_csv(root / "gvkeys_to_gics.csv")
+    valid_ids = mapping[mapping["tic"].isin(TARGET_TICKERS)]["gvkey"].astype(str).unique()
+    df = df[df["gvkey"].astype(str).isin(valid_ids)]
+    
+    # Filter Dates
+    df = df[(df["datadate"] >= START_DATE) & (df["datadate"] <= END_DATE)]
+    df = df[["gvkey", "datadate"] + FEATURES].sort_values(by=["gvkey", "datadate"])
+    
+    # --- TRANSFORM: LOG-LEVELS ONLY ---
+    # We use Log-Modulus to handle negative numbers (like Net Income loss)
+    # But we DO NOT divide by standard deviation. This preserves size differences.
+    print("Applying Log-Modulus Transform (No Standardization)...")
+    df[FEATURES] = np.sign(df[FEATURES]) * np.log1p(np.abs(df[FEATURES]))
+    
+    # Fill remaining NaNs with 0 (which means $0 after log-transform)
+    df[FEATURES] = df[FEATURES].fillna(0)
+    
+    return df
+
+def build_raw_tensor(df):
+    firms = sorted(df["gvkey"].unique())
+    dates = sorted(df["datadate"].unique())
+    
+    print(f"Building Tensor: {len(firms)} Firms x {len(FEATURES)} Features x {len(dates)} Quarters")
+    
+    tensor = np.full((len(firms), len(FEATURES), len(dates)), np.nan, dtype=np.float32)
+    f_map = {f: i for i, f in enumerate(firms)}
+    d_map = {d: i for i, d in enumerate(dates)}
+    
+    # Fast iterator
+    data_arr = df[FEATURES].values
+    gvkey_arr = df["gvkey"].values
+    date_arr = df["datadate"].values
+    
+    for i in range(len(df)):
+        f_idx = f_map.get(gvkey_arr[i])
+        d_idx = d_map.get(date_arr[i])
+        if f_idx is not None and d_idx is not None:
+            tensor[f_idx, :, d_idx] = data_arr[i]
+            
+    return tensor
+
+# --- WORKER ---
+def process_window(t, tensor, L, ranks):
+    tl.set_backend("numpy")
+    H = 1 
+    X = tensor[:, :, t : t + L]
+    Y = tensor[:, :, t + L : t + L + H]
+    
+    if np.isnan(Y).all(): return None
+    
+    mask = (~np.isnan(X)).astype(int) 
+    X_filled = np.nan_to_num(X, nan=0.0)
+    
+    # Run Tucker to impute missing values consistent with the "Levels" structure
+    try:
+        rng = np.random.default_rng(SEED + t) 
+        core, factors = tucker(X_filled, rank=ranks, mask=mask, 
+                               n_iter_max=30, tol=1e-3, 
+                               init="random", random_state=int(rng.integers(0, 1e9)), 
+                               verbose=0)
+        X_clean = tucker_to_tensor((core, factors))
+        
+        norm_tensor = np.linalg.norm(X_filled * mask)
+        if norm_tensor < 1e-5: 
+            recon_error = 0.0
+        else:
+            recon_error = np.linalg.norm((X_clean - X_filled) * mask) / norm_tensor
+            
+    except:
+        X_clean = X_filled
+        recon_error = 1.0
+
+    return (X_clean.astype(np.float32), 
+            np.nan_to_num(Y, nan=0.0).astype(np.float32), 
+            (~np.isnan(Y)).astype(bool),
+            recon_error)
+
+# --- MAIN ---
+if __name__ == "__main__":
+    df = get_levels_data()
+    raw_tensor = build_raw_tensor(df)
+    n_time = raw_tensor.shape[2]
+    
+    for L, ranks in CONFIGS_TO_GENERATE:
+        print(f"\n--- PROCESSING LEVELS CACHE L={L} ---")
+        n_wins = n_time - (L + 1)
+        
+        results = Parallel(n_jobs=6, verbose=5)(
+            delayed(process_window)(t, raw_tensor, L, ranks) for t in range(n_wins)
+        )
+        
+        valid = [r for r in results if r is not None]
+        
+        X_all = np.stack([r[0] for r in valid])
+        Y_all = np.stack([r[1] for r in valid])
+        Mask_all = np.stack([r[2] for r in valid])
+        Errors = [r[3] for r in valid]
+        
+        avg_err = np.mean(Errors)
+        print(f"  > Avg Imputation Error: {avg_err:.4f}")
+        
+        # Save with explicit 'levels' in name
+        fname = OUTPUT_DIR / f"tensor_levels_L{L}.pkl"
+        print(f"  > Saving to {fname}...")
+        joblib.dump({
+            "X": X_all,
+            "Y": Y_all,
+            "Mask": Mask_all,
+            "L": L,
+            "Ranks": ranks,
+            "Avg_Error": avg_err
+        }, fname)
+        
+    print("\n--- LEVELS CACHE COMPLETE ---")
