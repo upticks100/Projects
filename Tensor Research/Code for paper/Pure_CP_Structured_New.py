@@ -19,9 +19,9 @@ import tensorly as tl
 from tensorly.regression.cp_regression import CPRegressor
 
 # 1. CLUSTER SAFETY
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-os.environ["OPENBLAS_NUM_THREADS"] = "1"
+os.environ["OMP_NUM_THREADS"] = "4"
+os.environ["MKL_NUM_THREADS"] = "4"
+os.environ["OPENBLAS_NUM_THREADS"] = "4"
 warnings.filterwarnings("ignore")
 
 # --- GLOBAL CONFIG ---
@@ -234,4 +234,4 @@ if __name__ == "__main__":
         print(f"{'='*60}\n")
 
         objective_fn = make_objective(mode)
-        study.optimize(objective_fn, n_trials=args.n_trials)
+        study.optimize(objective_fn, n_trials=args.n_trials, n_jobs=3)
