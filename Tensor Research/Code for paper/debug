@@ -1,0 +1,54 @@
+import pandas as pd
+import numpy as np
+from pathlib import Path
+
+CSV_PATH = "/student/mcnama53/Documents/Tensor Research/Code for paper/90-25_Q_Fundamentals.csv"
+MAP_PATH = "/student/mcnama53/Documents/Tensor Research/Code for paper/gvkeys_to_gics.csv"
+
+START_DATE = "2005-01-01"
+END_DATE   = "2024-12-31"
+
+TARGET_TICKERS = [
+    "NVDA","AAPL","MSFT","AMZN","GOOGL","AVGO","META","TSLA","BRK.B","LLY","WMT",
+    "JPM","V","ORCL","JNJ","MA","XOM","NFLX","COST","ABBV","PLTR","BAC","HD","AMD",
+    "PG","GE","KO","CSCO","CVX","UNH","IBM","MS","WFC","CAT","MU","MRK","AXP","GS",
+    "PM","RTX","TMUS","ABT","MCD","TMO","CRM","PEP","ISRG","APP","AMAT"
+]
+
+def audit_filtered():
+    df = pd.read_csv(CSV_PATH, low_memory=False)
+    df["datadate"] = pd.to_datetime(df["datadate"], errors="coerce")
+    df["gvkey"] = df["gvkey"].astype(str)
+
+    mapping = pd.read_csv(MAP_PATH, low_memory=False)
+    valid_ids = mapping[mapping["tic"].isin(TARGET_TICKERS)]["gvkey"].astype(str).unique()
+
+    df = df[df["gvkey"].isin(valid_ids)]
+    df = df[(df["datadate"] >= START_DATE) & (df["datadate"] <= END_DATE)].copy()
+
+    # Consistency filters (optional but recommended if columns exist)
+    for col, val in [("datafmt", "STD"), ("indfmt", "INDL"), ("consol", "C")]:
+        if col in df.columns:
+            df = df[df[col] == val]
+
+    df["quarter_period"] = df["datadate"].dt.to_period("Q")
+
+    # 1) duplicates on (gvkey, datadate): this is the scary one (same firm same date)
+    dd = df.duplicated(["gvkey", "datadate"], keep=False)
+    print("\n[Filtered] Duplicates on (gvkey, datadate):", dd.sum())
+    if dd.sum() > 0:
+        cols = [c for c in ["gvkey","datadate","fyearq","fqtr","datafmt","indfmt","consol","fyr"] if c in df.columns]
+        print(df.loc[dd, cols].sort_values(["gvkey","datadate"]).head(40))
+
+    # 2) calendar snapping collisions: multiple fiscal quarters in same calendar quarter
+    g = df.groupby(["gvkey", "quarter_period"])[["fyearq","fqtr"]].nunique()
+    collisions = g[g["fqtr"] > 1]
+    print("\n[Filtered] Calendar-bucket collisions (fqtr > 1):", len(collisions))
+    if len(collisions) > 0:
+        # show the actual offending rows
+        bad_keys = collisions.index
+        bad = df.set_index(["gvkey","quarter_period"]).loc[bad_keys].reset_index()
+        cols = [c for c in ["gvkey","quarter_period","datadate","fyearq","fqtr","fyr"] if c in bad.columns]
+        print(bad[cols].sort_values(["gvkey","datadate"]).head(60))
+
+audit_filtered()
