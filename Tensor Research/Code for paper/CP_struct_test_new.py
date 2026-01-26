@@ -179,9 +179,13 @@ def firm_feature_means(Y_tr: np.ndarray, M_tr: np.ndarray) -> np.ndarray:
 def ar1_persistence_per_feature(
     Y_all: np.ndarray,
     M_all: np.ndarray,
-    min_obs: Optional[int] = None
+    min_obs: int = 8
 ) -> np.ndarray:
     """AR(1) persistence (rho) per feature: fit per firm, then average.
+    
+    Args:
+        min_obs: Minimum observations per firm series (default 8 = 2 years quarterly).
+                 Uses a fixed threshold since AR(1) is computed per-firm, not panel-wide.
     
     NOTE: Missing quarters are dropped, treating non-contiguous observations
     as contiguous (lag-1). This is a simplification; true AR(1) with gaps
@@ -189,8 +193,6 @@ def ar1_persistence_per_feature(
     """
     n_firms = Y_all.shape[1]
     n_feat = Y_all.shape[2]
-    if min_obs is None:
-        min_obs = get_min_obs_per_feat(n_firms, Y_all.shape[0], M_all)
     rhos = np.full(n_feat, np.nan, dtype=float)
     for j in range(n_feat):
         firm_rhos = []
