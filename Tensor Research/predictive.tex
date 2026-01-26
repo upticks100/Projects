@@ -1,0 +1,129 @@
+\abstract{
+We introduce a Market Fundamentals Index (MFI) constructed from a tensor representation of firm-level accounting data and a Tucker-based smoothing step. The index summarizes time-varying dispersion in fundamentals and we test its dependence with a price-based financial chaos index (FCIX). Building on the same tensor representation, we develop a predictive modeling pipeline that imputes missing fundamentals using a mask-aware Tucker decomposition, forms quarterly lookback tensors, and forecasts next-quarter fundamentals via a low-rank CANDECOMP/PARAFAC tensor regression with firm-by-feature fixed effects and RMS normalization. The framework is evaluated against a ridge baseline using time-series cross-validation and an out-of-sample test set.
+}
+
+\keywords{multilinear tensor regression, Tucker decomposition, CANDECOMP/PARAFAC, market fundamentals, volatility index, fixed effects, time-series forecasting}
+
+\section{Predictive Modeling for Fundamentals}
+\label{Section:Predictive_Fundamentals}
+
+We now assess whether the fundamentals tensor contains predictive structure for next-quarter accounting values. The task is to forecast a firm-by-feature target matrix using the preceding $L$ quarters of fundamentals, with $L \in \{2,4\}$ corresponding to 6-month and 1-year lookbacks.
+
+\subsection{Tensor construction and imputation}
+\label{Section:Tensor_Imputation}
+
+We work with a quarterly panel of $N=49$ large-cap firms and $F=24$ Compustat fundamentals over 2005Q1--2024Q4. After snapping report dates to a strict quarterly grid (keeping the last report per quarter), each feature is transformed by the log-modulus map
+\begin{equation}
+\phi(x) = \mathrm{sgn}(x)\log(1 + |x|),
+\end{equation}
+which stabilizes scale while preserving sign information. The resulting raw tensor is
+$\mathbfcal{X} \in \mathbb{R}^{N \times F \times T}$.
+For each time index $t$, we form an input window
+\begin{equation}
+\mathbfcal{X}_t = \mathbfcal{X}_{:,:,t:t+L-1} \in \mathbb{R}^{N \times F \times L},
+\qquad
+\mathbf{Y}_t = \mathbfcal{X}_{:,:,t+L} \in \mathbb{R}^{N \times F},
+\end{equation}
+with observation masks $\mathbfcal{M}_t$ and $\mathbf{M}_t$ for the input and target, respectively.
+
+Missing entries inside each window are imputed with a mask-aware Tucker decomposition,
+\begin{equation}
+\min_{\mathbfcal{H}_t,\mathbf{A}_t,\mathbf{B}_t,\mathbf{C}_t}
+\left\| \mathbfcal{M}_t \odot \left(\mathbfcal{X}_t -
+\mathbfcal{H}_t \times_1 \mathbf{A}_t \times_2 \mathbf{B}_t \times_3 \mathbf{C}_t \right) \right\|_F^2,
+\end{equation}
+using ranks $(40,20,L)$. We compute an observed-only RMS scale for each window,
+\begin{equation}
+r_t = \sqrt{\frac{1}{|\Omega_t|}\sum_{(i,j,k)\in\Omega_t} x_{ijk}^2},
+\end{equation}
+where $\Omega_t$ is the set of observed entries in $\mathbfcal{X}_t$. We
+evaluate two input-scaling variants: an RMS-normalized covariate tensor
+($\mathbfcal{X}_t / r_t$) and an unscaled covariate tensor where the imputed
+values are returned to the original units.
+
+\begin{figure}[ht]
+\centering
+\fbox{\rule{0pt}{2.2in}\rule{0.9\linewidth}{0pt}}
+\caption[Placeholder for tensor windowing and imputation.]{Placeholder for the quarterly windowing, Tucker imputation, and RMS scaling pipeline.}
+\label{Fig:Imputer_Pipeline}
+\end{figure}
+
+\subsection{Low-rank CANDECOMP/PARAFAC regression with fixed effects}
+\label{Section:CP_Structured}
+
+To control for persistent firm-feature offsets, we estimate fixed effects
+\begin{equation}
+\mu_{ij} = \frac{\sum_t m_{tij} y_{tij}}{\sum_t m_{tij} + \varepsilon},
+\end{equation}
+and model the de-meaned target with a low-rank CANDECOMP/PARAFAC tensor
+regression. Let $\mathbfcal{W}$ be a low-rank coefficient tensor with CP form
+\begin{equation}
+\mathbfcal{W} = \sum_{r=1}^{R} \mathbf{a}_r \circ \mathbf{b}_r \circ \mathbf{c}_r \circ \mathbf{d}_r.
+\end{equation}
+We estimate $\mathbfcal{W}$ by regularized least squares,
+\begin{equation}
+\min_{\mathbfcal{W}}
+\sum_t \left\| \mathbf{M}_t \odot \left(\mathbf{Y}_t - \mu - \langle \mathbfcal{X}_t, \mathbfcal{W} \rangle \right) \right\|_F^2
++ \lambda \|\mathbfcal{W}\|_F^2,
+\end{equation}
+where $\langle \mathbfcal{X}_t, \mathbfcal{W} \rangle$ denotes the multilinear contraction that maps the $N \times F \times L$ input to an $N \times F$ prediction. We tune the rank $R$, regularization weight $\lambda$, and optional RMS scaling via hyperparameter optimization on a rolling time-series split of the development data.
+
+\subsection{Baseline and evaluation}
+\label{Section:Baseline_Eval}
+
+As a baseline, we fit per-feature ridge regressions on vectorized lag windows with the same firm fixed effects. Ridge penalties are selected by an inner time-series cross-validation; when a feature is too sparse, we revert to the firm-mean baseline. Performance is evaluated using a pooled, mask-aware coefficient of determination,
+\begin{equation}
+R^2 = 1 - \frac{\sum_{t,i,j} m_{tij} (y_{tij} - \widehat{y}_{tij})^2}
+{\sum_{t,i,j} m_{tij} (y_{tij} - \bar{y})^2},
+\end{equation}
+with $\bar{y}$ the mean of observed entries. We also compute per-feature $R^2$ values, estimate AR(1) persistence per feature, and examine the association between persistence and the CP/PARAFAC versus ridge performance gap using Spearman correlation and paired Wilcoxon tests with Benjamini--Hochberg adjustment.
+
+\subsection{Empirical results}
+\label{Section:Predictive_Results}
+
+Tables~\ref{Tab:CP_Ridge_Results} and~\ref{Tab:Persistence_Stats} and
+Figure~\ref{Fig:Persistence_Scatter} are placeholders for the CP/PARAFAC
+tensor regression versus ridge evaluation and persistence diagnostics.
+
+\begin{table}[ht]
+\centering
+\caption{CP/PARAFAC tensor regression vs ridge results (placeholders).}
+\label{Tab:CP_Ridge_Results}
+\begin{tabular}{lcccccc}
+\toprule
+Input scaling & $L$ & Ridge CV $R^2$ & CP CV $R^2$ & Ridge Test $R^2$ & CP Test $R^2$ & Delta \\
+\midrule
+Unscaled        & 2 & -- & -- & -- & -- & -- \\
+Unscaled        & 4 & -- & -- & -- & -- & -- \\
+RMS-normalized  & 2 & -- & -- & -- & -- & -- \\
+RMS-normalized  & 4 & -- & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[ht]
+\centering
+\caption{Persistence and significance diagnostics (placeholders).}
+\label{Tab:Persistence_Stats}
+\begin{tabular}{lcccccc}
+\toprule
+Input scaling & $L$ & $N_{\mathrm{feat}}$ & Mean Delta & Spearman $r$ & Spearman $p_{\mathrm{adj}}$ & Wilcoxon $p_{\mathrm{adj}}$ \\
+\midrule
+Unscaled        & 2 & -- & -- & -- & -- & -- \\
+Unscaled        & 4 & -- & -- & -- & -- & -- \\
+RMS-normalized  & 2 & -- & -- & -- & -- & -- \\
+RMS-normalized  & 4 & -- & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[ht]
+\centering
+\fbox{\rule{0pt}{2.2in}\rule{0.9\linewidth}{0pt}}
+\caption[Placeholder for persistence vs performance scatter.]{Placeholder for persistence vs performance scatter plots (four panels: input scaling in \{unscaled, RMS-normalized\} and $L \in \{2,4\}$).}
+\label{Fig:Persistence_Scatter}
+\end{figure}
+
+\section{Conclusion}
+
+We develop a tensor-based framework for analyzing and forecasting firm fundamentals. The Market Fundamentals Index provides a fundamentals-driven view of market-wide volatility, and its statistical dependence with FCIX establishes a link between price-based and accounting-based fluctuations. We then introduce a predictive pipeline that combines mask-aware Tucker imputation with low-rank CANDECOMP/PARAFAC tensor regression and firm-by-feature fixed effects, with ridge regression as a baseline comparator. This framework enables systematic evaluation of predictability in quarterly fundamentals and can be extended to larger universes, richer feature sets, and macroeconomic covariates in future work.
