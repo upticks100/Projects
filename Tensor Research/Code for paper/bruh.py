@@ -13,7 +13,7 @@ TARGET_TICKERS = [
 
 def check_alignment():
     print("--- LOADING DATA ---")
-    root = Path("/student/mcnama53/Documents/Tensor Research/Code for paper/")
+    root = Path(__file__).resolve().parent
     df = pd.read_csv(root / "90-25_Q_Fundamentals.csv")
     mapping = pd.read_csv(root / "gvkeys_to_gics.csv")
     

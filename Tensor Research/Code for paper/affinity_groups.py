@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from pathlib import Path
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import normalized_mutual_info_score
 from sklearn.metrics import adjusted_mutual_info_score
@@ -7,6 +8,8 @@ import warnings
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.cluster import AffinityPropagation
 from datetime import datetime
+
+_HERE = Path(__file__).resolve().parent
 
 warnings.filterwarnings("ignore", category=ConvergenceWarning)
 
@@ -75,7 +78,7 @@ def compute_worst_securities(df: pd.DataFrame,
 
 ########## 
 
-df = pd.read_csv('VScode/Alpha/Research/Code for paper/firm_ratios.csv')
+df = pd.read_csv(_HERE / 'firm_ratios.csv')
 # Ensure date column is present and parsed from THIS file
 
 df['public_date'] = pd.to_datetime(df['public_date'])
@@ -134,7 +137,7 @@ n_clusters = len(np.unique(labels))
 print(f"Affinity Propagation with {len(use_features)} features found {n_clusters} exemplars/clusters.")
 
 
-gvkeys_to_gics = pd.read_csv('VScode/Alpha/Research/Code for paper/gvkeys_to_gics.csv')
+gvkeys_to_gics = pd.read_csv(_HERE / 'gvkeys_to_gics.csv')
 gvkeys_to_gics["datadate"] = pd.to_datetime(gvkeys_to_gics["datadate"])
 gvkeys_to_gics = gvkeys_to_gics.sort_values('datadate').groupby('gvkey').tail(1)
 gvkeys_to_gics = gvkeys_to_gics[['gvkey','tic', 'ggroup', 'gind', 'gsector', 'gsubind']].copy()

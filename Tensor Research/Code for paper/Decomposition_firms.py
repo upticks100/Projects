@@ -2,6 +2,9 @@ import numpy as np
 import pandas as pd 
 import tensorly as tn
 import os
+from pathlib import Path
+
+_HERE = Path(__file__).resolve().parent
 import matplotlib
 matplotlib.use("Agg")  # non-interactive backend for SSH
 import matplotlib.pyplot as plt
@@ -23,7 +26,7 @@ END_DATE = "2024-12-31"
 # Building DataFrame
 ####################################
 
-df_ratios = pd.read_csv("VScode/Alpha/Research/Code for paper/firm_ratios.csv")
+df_ratios = pd.read_csv(_HERE / "firm_ratios.csv")
 df_ratios.head()
 
 df_ratios["public_date"] = pd.to_datetime(df_ratios["public_date"])
@@ -153,7 +156,7 @@ if APPLY_FIRM_FILTER:
     print("New tensor shape after firm filter:", tensor.shape)
     print(f"Kept firms: {tensor.shape[0]}  | Features untouched: {tensor.shape[1]} | Time: {tensor.shape[2]}")
 
-gvkeys_to_gics = pd.read_csv('VScode/Alpha/Research/Code for paper/gvkeys_to_gics.csv')
+gvkeys_to_gics = pd.read_csv(_HERE / "gvkeys_to_gics.csv")
 gvkeys_to_gics["datadate"] = pd.to_datetime(gvkeys_to_gics["datadate"])
 gvkeys_to_gics = gvkeys_to_gics.sort_values('datadate').groupby('gvkey').tail(1)
 gvkeys_to_gics = gvkeys_to_gics[['gvkey','tic', 'ggroup', 'gind', 'gsector', 'gsubind']].copy()

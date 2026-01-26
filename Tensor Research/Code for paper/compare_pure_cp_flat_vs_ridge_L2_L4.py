@@ -221,7 +221,7 @@ def main():
 
     here = Path(__file__).resolve().parent
     cache_dir = here / "tensor_cache"
-    db_path = Path("/student/mcnama53/research_pure_flat.db")
+    db_path = here.parent / "research_pure_flat.db"
     study_name = "research_pure_flat_v1"
 
     storage = f"sqlite:///{db_path.as_posix()}"

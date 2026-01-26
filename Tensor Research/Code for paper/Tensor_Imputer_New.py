@@ -40,7 +40,7 @@ CONFIGS = [
     (4, [40, 20, 4]), 
 ]
 
-ROOT_DIR = Path("/student/mcnama53/Documents/Tensor Research/Code for paper/")
+ROOT_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = ROOT_DIR / "tensor_cache"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
