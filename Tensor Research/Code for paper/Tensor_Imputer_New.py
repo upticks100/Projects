@@ -43,6 +43,7 @@ CONFIGS = [
 ROOT_DIR = Path(__file__).resolve().parent
 OUTPUT_DIR = ROOT_DIR / "tensor_cache"
 os.makedirs(OUTPUT_DIR, exist_ok=True)
+SAVE_SPARSITY_DIAGNOSTICS = True
 
 def get_quarterly_data():
     print("Loading Raw Data...")
@@ -92,6 +93,91 @@ def build_raw_tensor(df):
             vals = [getattr(row, feat) for feat in FEATURES]
             tensor[f_idx, :, q_idx] = vals
     return tensor
+
+def report_sparsity(tensor, firms, quarters, features, output_dir=None):
+    obs_mask = np.isfinite(tensor)
+    total = tensor.size
+    obs = int(obs_mask.sum())
+    density = obs / total if total > 0 else 0.0
+
+    obs_firm = obs_mask.sum(axis=(1, 2))
+    obs_feat = obs_mask.sum(axis=(0, 2))
+    obs_quarter = obs_mask.sum(axis=(0, 1))
+
+    total_firm = tensor.shape[1] * tensor.shape[2]
+    total_feat = tensor.shape[0] * tensor.shape[2]
+    total_quarter = tensor.shape[0] * tensor.shape[1]
+
+    dens_firm = obs_firm / (total_firm + 1e-12)
+    dens_feat = obs_feat / (total_feat + 1e-12)
+    dens_quarter = obs_quarter / (total_quarter + 1e-12)
+
+    print("\n--- SPARSITY DIAGNOSTICS ---")
+    print(f"Overall density: {density:.2%} ({obs}/{total})")
+    print(f"Firm density:    mean={dens_firm.mean():.2%} med={np.median(dens_firm):.2%} "
+          f"min={dens_firm.min():.2%} max={dens_firm.max():.2%}")
+    print(f"Feature density: mean={dens_feat.mean():.2%} med={np.median(dens_feat):.2%} "
+          f"min={dens_feat.min():.2%} max={dens_feat.max():.2%}")
+    print(f"Quarter density: mean={dens_quarter.mean():.2%} med={np.median(dens_quarter):.2%} "
+          f"min={dens_quarter.min():.2%} max={dens_quarter.max():.2%}")
+    print(f"All-missing firms:   {(obs_firm == 0).sum()} / {len(firms)}")
+    print(f"All-missing features:{(obs_feat == 0).sum()} / {len(features)}")
+    print(f"All-missing quarters:{(obs_quarter == 0).sum()} / {len(quarters)}")
+
+    # Top/bottom features by density
+    feat_order = np.argsort(dens_feat)
+    bottom_idx = feat_order[: min(5, len(features))]
+    top_idx = feat_order[-min(5, len(features)) :]
+    bottom_feats = ", ".join([f"{features[i]}={dens_feat[i]:.1%}" for i in bottom_idx])
+    top_feats = ", ".join([f"{features[i]}={dens_feat[i]:.1%}" for i in top_idx])
+    print(f"Bottom features: {bottom_feats}")
+    print(f"Top features:    {top_feats}")
+
+    if output_dir is None:
+        return
+
+    os.makedirs(output_dir, exist_ok=True)
+    pd.DataFrame([{
+        "overall_density": density,
+        "observed": obs,
+        "total": total,
+        "firms": len(firms),
+        "features": len(features),
+        "quarters": len(quarters),
+        "firm_density_mean": float(dens_firm.mean()),
+        "firm_density_median": float(np.median(dens_firm)),
+        "firm_density_min": float(dens_firm.min()),
+        "firm_density_max": float(dens_firm.max()),
+        "feature_density_mean": float(dens_feat.mean()),
+        "feature_density_median": float(np.median(dens_feat)),
+        "feature_density_min": float(dens_feat.min()),
+        "feature_density_max": float(dens_feat.max()),
+        "quarter_density_mean": float(dens_quarter.mean()),
+        "quarter_density_median": float(np.median(dens_quarter)),
+        "quarter_density_min": float(dens_quarter.min()),
+        "quarter_density_max": float(dens_quarter.max()),
+    }]).to_csv(Path(output_dir) / "sparsity_summary.csv", index=False)
+
+    pd.DataFrame({
+        "gvkey": firms,
+        "density": dens_firm,
+        "observed": obs_firm,
+        "total": total_firm,
+    }).to_csv(Path(output_dir) / "sparsity_by_firm.csv", index=False)
+
+    pd.DataFrame({
+        "feature": features,
+        "density": dens_feat,
+        "observed": obs_feat,
+        "total": total_feat,
+    }).to_csv(Path(output_dir) / "sparsity_by_feature.csv", index=False)
+
+    pd.DataFrame({
+        "quarter": [str(q) for q in quarters],
+        "density": dens_quarter,
+        "observed": obs_quarter,
+        "total": total_quarter,
+    }).to_csv(Path(output_dir) / "sparsity_by_quarter.csv", index=False)
 
 def process_window(t, tensor, L, ranks, mode="SURPRISE"):
     tl.set_backend("numpy")
@@ -167,6 +253,10 @@ def process_window(t, tensor, L, ranks, mode="SURPRISE"):
 if __name__ == "__main__":
     df = get_quarterly_data()
     raw_tensor = build_raw_tensor(df)
+    if SAVE_SPARSITY_DIAGNOSTICS:
+        firms = sorted(df["gvkey"].unique())
+        quarters = sorted(df["quarter_period"].unique())
+        report_sparsity(raw_tensor, firms, quarters, FEATURES, OUTPUT_DIR / "sparsity_diagnostics")
     n_time = raw_tensor.shape[2]
     
     modes = [("LEVELS", "tensor_levels_v2"), ("SURPRISE", "tensor_surprise_v2")]

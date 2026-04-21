@@ -28,7 +28,6 @@ from typing import Optional, List, Tuple, Dict
 
 import joblib
 import numpy as np
-import optuna
 import pandas as pd
 import tensorly as tl
 
@@ -75,6 +74,13 @@ FILE_MAP = {
 }
 
 RIDGE_ALPHAS = np.array([1e-2, 1e-1, 1.0, 10.0, 100.0, 1000.0, 1e4], dtype=float)
+
+CP_PARAMS: Dict[Tuple[str, int], Dict] = {
+    ("LEVELS",   2): {"rank": 8,  "reg_w": 98.1655,  "rms": True},
+    ("LEVELS",   4): {"rank": 5,  "reg_w": 67.3035,  "rms": True},
+    ("SURPRISE", 2): {"rank": 43, "reg_w": 52.4373,  "rms": True},
+    ("SURPRISE", 4): {"rank": 49, "reg_w": 85.3185,  "rms": True},
+}
 
 FEATURES = [
     "aoq", "aqaq", "atq", "ltq", "ceqq", "cheq", "ciq", "cogsq", "dlcq", "dlttq",
@@ -128,20 +134,6 @@ def evaluate_model_per_feature(
         scores[j] = 1.0 - np.sum((clean_t - clean_p) ** 2) / sst
     return scores
 
-def get_best_trial_for(study: optuna.Study, mode: str, L: int) -> optuna.trial.FrozenTrial:
-    """Get the best trial for a given L value. Mode is implicit in the study."""
-    best = None
-    for t in study.get_trials(deepcopy=False):
-        if t.value is None:
-            continue
-        # Mode is now implicit in the study (separate studies per mode)
-        if int(t.params.get("L")) != int(L):
-            continue
-        if (best is None) or (t.value > best.value):
-            best = t
-    if best is None:
-        raise RuntimeError(f"No COMPLETE trials for MODE={mode}, L={L}")
-    return best
 
 def _within_firm_means_y(
     y_tr: np.ndarray,
@@ -333,7 +325,6 @@ def ridge_structured_fixed_effects_ts_cv(
     return y_pred_val_f.reshape(n_val_t, n_f, n_feat)
 
 def run_one_combo(
-    study: optuna.Study,
     cache_path: Path,
     mode: str,
     L: int
@@ -344,14 +335,13 @@ def run_one_combo(
     M_all = cache["Mask"]  # (T, Firms, Features)
     feature_names = get_feature_names(Y_all.shape[2])
 
-    bt = get_best_trial_for(study, mode, L)
-
-    rank_reg = int(bt.params["RANK_REGRESS"])
-    reg_w = float(bt.params["REG_W"])
-    use_rms = bool(bt.params.get("USE_RMS_SCALING", bt.params.get("RMS_Scaling", False)))
+    cp = CP_PARAMS[(mode, L)]
+    rank_reg = cp["rank"]
+    reg_w = cp["reg_w"]
+    use_rms = cp["rms"]
 
     print(f"\n=== PURE CP STRUCT vs RIDGE (FE+TS-CV Ridge) | MODE={mode} L={L} ===")
-    print(f"Best CP Params: rank={rank_reg} reg_w={reg_w:.6g} rms={use_rms}")
+    print(f"CP Params: rank={rank_reg} reg_w={reg_w:.6g} rms={use_rms}")
 
     # --- Split Data: 80% Dev (CV), 20% Hold-out Test ---
     split_idx = int(0.8 * len(X_all))
@@ -505,28 +495,13 @@ def main():
     per_feature_rows_all: List[Dict] = []
 
     for mode in MODES:
-        # Load mode-specific study
-        db_path = here / f"research_cp_fe_v2_{mode.lower()}.db"
-        study_name = f"research_cp_fe_v2_{mode.lower()}"
-        
-        if not db_path.exists():
-            print(f"[SKIP] Missing study database for {mode}: {db_path}")
-            continue
-            
-        storage = f"sqlite:///{db_path.as_posix()}"
-        try:
-            study = optuna.load_study(study_name=study_name, storage=storage)
-        except Exception as e:
-            print(f"[SKIP] Could not load study for {mode}: {e}")
-            continue
-        
         for L in LOOKBACKS:
             cache_file = cache_dir / FILE_MAP[mode][L]
             if not cache_file.exists():
                 print(f"[SKIP] Missing cache: {cache_file}")
                 continue
             try:
-                res, per_rows = run_one_combo(study, cache_file, mode, L)
+                res, per_rows = run_one_combo(cache_file, mode, L)
                 results_list.append(res)
                 per_feature_rows_all.extend(per_rows)
             except Exception as e:
