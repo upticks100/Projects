@@ -1,0 +1,22 @@
+# Fdb version 4
+["bibtex main"] 1772992196.87822 "main.aux" "main.bbl" "main" 1772992197.07481 0
+  "./references.bib" 1769397873.63951 51854 38a0c3709433a4142a90aeb219af2ade ""
+  "./sn-mathphys-num.bst" 1769397873.67551 64141 2560fd4f8e8321a304f732d035eb1b51 ""
+  "main.aux" 1769397873.51851 5112 e9caddcee352800dae940479331369c6 "pdflatex"
+  (generated)
+  "main.bbl"
+  "main.blg"
+  (rewritten before read)
+["pdflatex"] 1772992196.90993 "main.tex" "main.pdf" "main" 1772992197.0749 2
+  "kbordermatrix.sty" 1769397873.48751 5523 bfa1a1f639d04118419d64fe784088b4 ""
+  "main.aux" 1769397873.51851 5112 e9caddcee352800dae940479331369c6 "pdflatex"
+  "main.bbl" 1772992196.89723 3626 8a92f5208ae77e1241e32e1c60cdfb0e "bibtex main"
+  "main.out" 1769397873.55951 1519 6f22416d8e8b4fa4ae6bab979b325f24 "pdflatex"
+  "main.tex" 1772992083.18375 85696 cfb151278a3ea0b184bf5ae1b4b55402 ""
+  "sn-jnl.cls" 1769397873.66151 55331 2adf3041e7f64a0f542a04760be0043f ""
+  (generated)
+  "main.aux"
+  "main.log"
+  "main.out"
+  "main.pdf"
+  (rewritten before read)
