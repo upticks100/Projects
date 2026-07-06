@@ -1,2 +1,0 @@
-Trial,Value,L,Rank,RegW,RMS_Scaling,Avg_RMS,Avg_Density,Centering,ValidFolds
-1,0.31099,4,50,12.544663,False,1.000000,0.8499,FE_FIRMxFEAT,3

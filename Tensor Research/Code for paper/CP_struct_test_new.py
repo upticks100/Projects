@@ -324,6 +324,102 @@ def ridge_structured_fixed_effects_ts_cv(
 
     return y_pred_val_f.reshape(n_val_t, n_f, n_feat)
 
+def ridge_structured_cp_matched_zero_filled_ts_cv(
+    X_tr_4d: np.ndarray, Y_tr_3d: np.ndarray, M_tr_3d: np.ndarray,
+    X_val_4d: np.ndarray,
+    inner_splits: int = 3
+) -> np.ndarray:
+    """Ridge baseline matched to TensorLy CPRegressor target handling.
+
+    CPRegressor has no target mask, so CP is trained on firm-feature demeaned
+    residuals with missing target cells set to zero. This Ridge variant uses
+    the same zero-filled residual target and fits on all rows, then adds the
+    firm-feature fixed effect back at prediction time. Validation/test scoring
+    remains mask-aware through evaluate_model().
+    """
+    n_tr_t, n_f, n_feat, n_l = X_tr_4d.shape
+    n_val_t = X_val_4d.shape[0]
+    p = n_feat * n_l
+
+    X_tr_2d = X_tr_4d.transpose(0, 1, 3, 2).reshape(n_tr_t * n_f, p)
+    X_val_2d = X_val_4d.transpose(0, 1, 3, 2).reshape(n_val_t * n_f, p)
+
+    Y_tr_f = Y_tr_3d.reshape(n_tr_t * n_f, n_feat)
+    M_tr_f = M_tr_3d.reshape(n_tr_t * n_f, n_feat)
+
+    time_ids_tr = np.repeat(np.arange(n_tr_t), n_f)
+    firm_ids_tr = np.tile(np.arange(n_f), n_tr_t)
+    firm_ids_val = np.tile(np.arange(n_f), n_val_t)
+
+    denom = M_tr_3d.sum(axis=(0, 1)) + 1e-8
+    y_global_mean = (Y_tr_3d * M_tr_3d).sum(axis=(0, 1)) / denom
+
+    inner_tscv = TimeSeriesSplit(n_splits=inner_splits)
+    y_pred_val_f = np.zeros((n_val_t * n_f, n_feat), dtype=float)
+
+    for j in range(n_feat):
+        yj = Y_tr_f[:, j]
+        mj = M_tr_f[:, j]
+        y_firm_mean_full = _within_firm_means_y(
+            y_tr=yj,
+            m_tr=mj,
+            firm_ids=firm_ids_tr,
+            n_firms=n_f,
+            fallback_global=float(y_global_mean[j]),
+        )
+        yj_zero_filled_full = (yj - y_firm_mean_full[firm_ids_tr]) * mj
+
+        best_alpha = 100.0
+        best_score = -np.inf
+        for alpha in RIDGE_ALPHAS:
+            fold_scores = []
+            for tr_time_idx, va_time_idx in inner_tscv.split(np.arange(n_tr_t)):
+                tr_rows = np.isin(time_ids_tr, tr_time_idx)
+                va_rows = np.isin(time_ids_tr, va_time_idx)
+
+                # Inner-fold leakage fix:
+                # compute firm means on inner-training rows only, then build the
+                # zero-filled residual target with those inner means.
+                obs_inner_tr = mj[tr_rows] > 0
+                if obs_inner_tr.sum() < 10:
+                    continue
+                inner_global = float(np.mean(yj[tr_rows][obs_inner_tr]))
+                y_firm_mean_inner = _within_firm_means_y(
+                    y_tr=yj[tr_rows],
+                    m_tr=mj[tr_rows],
+                    firm_ids=firm_ids_tr[tr_rows],
+                    n_firms=n_f,
+                    fallback_global=inner_global,
+                )
+                yj_zero_filled_inner = (
+                    yj[tr_rows] - y_firm_mean_inner[firm_ids_tr[tr_rows]]
+                ) * mj[tr_rows]
+
+                rg = Ridge(alpha=float(alpha), fit_intercept=False, solver="auto", random_state=SEED)
+                rg.fit(X_tr_2d[tr_rows], yj_zero_filled_inner)
+                pred_va = rg.predict(X_tr_2d[va_rows]) + y_firm_mean_inner[firm_ids_tr[va_rows]]
+
+                obs_va = mj[va_rows] > 0
+                if obs_va.sum() < 10:
+                    continue
+                y_true_va = yj[va_rows][obs_va]
+                y_pred_va = pred_va[obs_va]
+                sst = np.sum((y_true_va - np.mean(y_true_va)) ** 2)
+                if sst > 1e-8:
+                    fold_scores.append(1.0 - np.sum((y_true_va - y_pred_va) ** 2) / sst)
+
+            if fold_scores:
+                score = float(np.mean(fold_scores))
+                if score > best_score:
+                    best_score = score
+                    best_alpha = float(alpha)
+
+        rg_final = Ridge(alpha=best_alpha, fit_intercept=False, solver="auto", random_state=SEED)
+        rg_final.fit(X_tr_2d, yj_zero_filled_full)
+        y_pred_val_f[:, j] = rg_final.predict(X_val_2d) + y_firm_mean_full[firm_ids_val]
+
+    return y_pred_val_f.reshape(n_val_t, n_f, n_feat)
+
 def run_one_combo(
     cache_path: Path,
     mode: str,
@@ -382,7 +478,7 @@ def run_one_combo(
                 continue
 
         # Ridge (only if CP fold is valid)
-        y_ridge_val = ridge_structured_fixed_effects_ts_cv(X_tr, Y_tr, M_tr, X_val)
+        y_ridge_val = ridge_structured_cp_matched_zero_filled_ts_cv(X_tr, Y_tr, M_tr, X_val)
         r2_ridge = evaluate_model(Y_val, y_ridge_val, M_val)
         r2_ridge_feat = evaluate_model_per_feature(Y_val, y_ridge_val, M_val)
         
@@ -417,7 +513,7 @@ def run_one_combo(
     print("--- Running Final Evaluation on Hold-Out Test Set (20%) ---")
     
     # Ridge Final
-    y_ridge_test = ridge_structured_fixed_effects_ts_cv(X_cv, Y_cv, M_cv, X_test)
+    y_ridge_test = ridge_structured_cp_matched_zero_filled_ts_cv(X_cv, Y_cv, M_cv, X_test)
     r2_ridge_test = evaluate_model(Y_test, y_ridge_test, M_test)
     if r2_ridge_test is None: r2_ridge_test = np.nan
     ridge_feat_test = evaluate_model_per_feature(Y_test, y_ridge_test, M_test)

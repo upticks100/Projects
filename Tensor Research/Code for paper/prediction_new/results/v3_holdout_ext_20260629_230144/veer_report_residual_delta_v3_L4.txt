@@ -1,0 +1,65 @@
+VEER ANOMALY EXPERIMENT — residual_delta_v3 L4
+======================================================================
+panel: 17 quarters (2022Q1..2026Q1), 50 firms, 850 firm-quarters
+  d_dd    : 696 scored events
+  d_logpe : 691 scored events
+  d_iv    : 657 scored events
+
+ROUTING GRID — FM slope WITH per-channel controls (primary), partial rank-IC
+----------------------------------------------------------------------
+            signal  target  fm_slope    fm_t    fm_p    q_bh    q_by  pic_mean   pic_t   n
+drift_liquidity_bs d_logpe   +0.0053 +3.4661 +0.0042 +0.0957 +0.3913   +0.0264 +0.6325 643
+    drift_cashflow    d_dd   +0.0401 +3.2953 +0.0058 +0.0957 +0.3913   +0.1207 +3.8206 647
+     veer_earnings d_logpe   -0.0083 -2.5855 +0.0216 +0.2073 +0.8478   -0.2239 -3.6504 691
+ veer_liquidity_bs d_logpe   +0.0041 +2.5068 +0.0251 +0.2073 +0.8478   +0.0028 +0.0886 691
+     veer_cashflow    d_dd   +0.0144 +1.9961 +0.0657 +0.4339 +1.0000   +0.0501 +1.3249 696
+   veer_investment d_logpe   -0.0039 -1.8768 +0.0815 +0.4485 +1.0000   -0.0035 -0.0869 691
+    drift_earnings d_logpe   -0.0073 -1.7829 +0.0980 +0.4618 +1.0000   -0.1090 -1.9089 643
+     veer_cashflow    d_iv   +0.0007 +1.6091 +0.1336 +0.5510 +1.0000   +0.0525 +1.2804 657
+  drift_investment d_logpe   -0.0040 -1.3394 +0.2034 +0.6777 +1.0000   -0.0377 -1.0940 643
+ veer_liquidity_bs    d_dd   -0.0163 -1.1360 +0.2750 +0.6777 +1.0000   -0.0333 -0.9404 696
+     veer_leverage    d_dd   -0.0231 -1.1180 +0.2824 +0.6777 +1.0000   -0.0632 -1.2409 696
+    drift_cashflow    d_iv   -0.0004 -1.0838 +0.3016 +0.6777 +1.0000   -0.0297 -0.6888 607
+ veer_liquidity_bs    d_iv   +0.0005 +1.0773 +0.3025 +0.6777 +1.0000   +0.0602 +1.9133 657
+          veer_rms    d_dd   -0.0055 -1.0593 +0.3074 +0.6777 +1.0000   -0.0474 -1.3979 696
+drift_liquidity_bs    d_iv   +0.0006 +1.0688 +0.3081 +0.6777 +1.0000   +0.0772 +2.7666 607
+
+  raw fm_p<0.05: 4 / 33
+  survivors q_bh<0.1: 2 / 33
+  survivors q_by<0.1: 0 / 33
+  survivors q_holm<0.1: 0 / 33
+  FM & partial-IC both p<0.05: 2 -> [('drift_cashflow', 'd_dd'), ('veer_earnings', 'd_logpe')]
+
+ASYMMETRY — FM slopes on neg-part vs pos-part (deterioration vs improvement veers)
+----------------------------------------------------------------------
+  veer_leverage          -> d_dd      neg: t=-0.21 (p=0.839)  pos: t=-1.43 (p=0.174)
+  veer_earnings          -> d_dd      neg: t=-1.06 (p=0.306)  pos: t=+2.38 (p=0.032)
+  veer_investment        -> d_dd      neg: t=+1.56 (p=0.142)  pos: t=-1.16 (p=0.266)
+  veer_liquidity_bs      -> d_dd      neg: t=+0.75 (p=0.463)  pos: t=-1.09 (p=0.294)
+  veer_cashflow          -> d_dd      neg: t=+2.38 (p=0.032)  pos: t=-0.49 (p=0.631)
+  veer_leverage          -> d_logpe   neg: t=+0.67 (p=0.511)  pos: t=-0.29 (p=0.776)
+  veer_earnings          -> d_logpe   neg: t=-1.47 (p=0.164)  pos: t=-0.63 (p=0.536)
+  veer_investment        -> d_logpe   neg: t=-0.64 (p=0.535)  pos: t=-0.39 (p=0.701)
+  veer_liquidity_bs      -> d_logpe   neg: t=+2.26 (p=0.040)  pos: t=+0.51 (p=0.615)
+  veer_cashflow          -> d_logpe   neg: t=-0.37 (p=0.720)  pos: t=+0.11 (p=0.915)
+  veer_leverage          -> d_iv      neg: t=-0.22 (p=0.829)  pos: t=+1.70 (p=0.114)
+  veer_earnings          -> d_iv      neg: t=+0.73 (p=0.477)  pos: t=-0.80 (p=0.437)
+  veer_investment        -> d_iv      neg: t=-0.67 (p=0.517)  pos: t=+1.18 (p=0.259)
+  veer_liquidity_bs      -> d_iv      neg: t=+2.28 (p=0.042)  pos: t=+0.98 (p=0.345)
+  veer_cashflow          -> d_iv      neg: t=+1.65 (p=0.126)  pos: t=-0.50 (p=0.623)
+
+ELASTIC-NET B(X) — expanding OOS R2, controls vs controls+veers (train-mean baseline)
+----------------------------------------------------------------------
+  d_dd    : R2(ctrl)=+0.0297  R2(ctrl+veer)=-0.0341  dR2=-0.0637  (n=304, folds=7)
+           picked: veer_rms 14%
+  d_logpe : R2(ctrl)=+0.0589  R2(ctrl+veer)=+0.0620  dR2=+0.0031  (n=310, folds=7)
+  d_iv    : R2(ctrl)=+0.3108  R2(ctrl+veer)=+0.3350  dR2=+0.0242  (n=257, folds=6)
+           picked: veer_cashflow 100%, drift_investment 100%, drift_cashflow 100%, veer_earnings 83%, drift_liquidity_bs 83%
+
+ERROR-CLUSTERING vs GICS + common-factor gauge
+----------------------------------------------------------------------
+  adjusted Rand vs GICS sector: k=11 +0.001   k=5 +0.024
+  mean |error-profile corr|: 0.059
+  top-PC share (overall): 0.066
+  top-PC share per theme: leverage=0.106, earnings=0.134, investment=0.081, liquidity_bs=0.146, cashflow=0.149
+

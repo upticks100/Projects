@@ -1,0 +1,74 @@
+
+=== Pooled per-cell summary (mean ± std of per-trial mean delta across features) ===
+  residual_delta_v3 LEVELS L=2: per-trial mean-feat-delta = +0.19037 ± 0.01415 (n_trials=5, n_features=40)
+  residual_delta_v3 LEVELS L=4: per-trial mean-feat-delta = +0.15845 ± 0.06125 (n_trials=5, n_features=40)
+  ridge_delta_v3 LEVELS L=2: per-trial mean-feat-delta = +0.09809 ± 0.00307 (n_trials=5, n_features=40)
+  ridge_delta_v3 LEVELS L=4: per-trial mean-feat-delta = +0.07139 ± 0.01994 (n_trials=5, n_features=40)
+
+=== Win/loss counts (across all trials in each cell) ===
+  residual_delta_v3 LEVELS L=2: 165 wins / 30 losses (195 evaluable trial×feature pairs)
+  residual_delta_v3 LEVELS L=4: 159 wins / 36 losses (195 evaluable trial×feature pairs)
+  ridge_delta_v3 LEVELS L=2: 183 wins / 12 losses (195 evaluable trial×feature pairs)
+  ridge_delta_v3 LEVELS L=4: 149 wins / 46 losses (195 evaluable trial×feature pairs)
+
+=== Stationarity-bucket breakdown by vr_stat (mean delta per bucket; Q1=low metric, Q3=high) ===
+  residual_delta_v3 LEVELS L=2: Q1=+0.48836  Q2=+0.04001  Q3=+0.07456  slope=-0.49542  corr=-0.454  (n_pairs=195)
+  residual_delta_v3 LEVELS L=4: Q1=+0.43347  Q2=+0.03353  Q3=+0.03872  slope=-0.46400  corr=-0.457  (n_pairs=195)
+  ridge_delta_v3 LEVELS L=2: Q1=+0.19634  Q2=+0.07170  Q3=+0.03838  slope=-0.15998  corr=-0.452  (n_pairs=195)
+  ridge_delta_v3 LEVELS L=4: Q1=+0.16288  Q2=+0.04227  Q3=+0.02002  slope=-0.14962  corr=-0.476  (n_pairs=195)
+
+=== Stationarity-bucket breakdown by cv (mean delta per bucket; Q1=low metric, Q3=high) ===
+  residual_delta_v3 LEVELS L=2: Q1=+0.34478  Q2=+0.18799  Q3=+0.03833  slope=-0.02972  corr=-0.119  (n_pairs=195)
+  residual_delta_v3 LEVELS L=4: Q1=+0.30033  Q2=+0.14172  Q3=+0.02426  slope=-0.02908  corr=-0.112  (n_pairs=195)
+  ridge_delta_v3 LEVELS L=2: Q1=+0.15577  Q2=+0.11842  Q3=+0.02008  slope=-0.01487  corr=-0.184  (n_pairs=195)
+  ridge_delta_v3 LEVELS L=4: Q1=+0.13797  Q2=+0.06113  Q3=+0.01125  slope=-0.01268  corr=-0.158  (n_pairs=195)
+
+=== Stationarity-bucket breakdown by trend_slope (mean delta per bucket; Q1=low metric, Q3=high) ===
+  residual_delta_v3 LEVELS L=2: Q1=+0.03570  Q2=+0.07253  Q3=+0.43762  slope=+11.69283  corr=+0.447  (n_pairs=195)
+  residual_delta_v3 LEVELS L=4: Q1=+0.03845  Q2=+0.02210  Q3=+0.41481  slope=+11.08810  corr=+0.467  (n_pairs=195)
+  ridge_delta_v3 LEVELS L=2: Q1=+0.05020  Q2=+0.05695  Q3=+0.17830  slope=+3.70688  corr=+0.437  (n_pairs=195)
+  ridge_delta_v3 LEVELS L=4: Q1=+0.01760  Q2=+0.03953  Q3=+0.15705  slope=+3.64948  corr=+0.495  (n_pairs=195)
+
+=== Top-10 highest-delta features (booster cells, averaged across all trials) ===
+
+  LEVELS L=2 top 10 by mean delta:
+                               feature_name  mean_base_r2  mean_ens_r2  mean_delta  pos_rate  n_trials
+                     Long-Term Debt - Total      -0.25082     +0.32428    +0.57510  +1.00000         5
+                       Sales/Turnover (Net)      +0.28114     +0.76516    +0.48402  +1.00000         5
+                     Assets - Other - Total      +0.32336     +0.72747    +0.40411  +1.00000         5
+       Operating Income Before Depreciation      -0.23518     +0.09436    +0.32954  +1.00000         5
+                Debt in Current Liabilities      +0.24890     +0.52211    +0.27321  +1.00000         5
+                        Receivables - Total      +0.56748     +0.78631    +0.21883  +1.00000         5
+Quarterly Income Before Extraordinary Items      -0.30096     -0.10649    +0.19447  +1.00000         5
+            Cash and Short-Term Investments      +0.55315     +0.73886    +0.18570  +1.00000         5
+                              Pretax Income      -0.23308     -0.06218    +0.17090  +1.00000         5
+               Comprehensive Income - Total      -0.24292     -0.09192    +0.15101  +1.00000         5
+
+  LEVELS L=2 bottom 5 by mean delta:
+                           feature_name  mean_base_r2  mean_ens_r2  mean_delta  pos_rate  n_trials
+Sale of PPE and Investments - Gain/Loss      +0.03931     +0.03164    -0.00767  +0.00000         5
+              Long-Term Debt - Issuance      +0.36229     +0.35637    -0.00592  +0.00000         5
+  Liabilities Netting Other Adjustments      +0.91533     +0.91508    -0.00025  +0.80000         5
+                    Extraordinary Items      -0.18247     -0.18244    +0.00003  +1.00000         5
+                 Assets and Liabilities      +0.80814     +0.80852    +0.00037  +1.00000         5
+
+  LEVELS L=4 top 10 by mean delta:
+                            feature_name  mean_base_r2  mean_ens_r2  mean_delta  pos_rate  n_trials
+                    Sales/Turnover (Net)      +0.29503     +0.71593    +0.42090  +1.00000         5
+                  Long-Term Debt - Total      -0.21727     +0.15100    +0.36827  +1.00000         5
+                  Assets - Other - Total      +0.34164     +0.69991    +0.35827  +1.00000         5
+    Operating Income Before Depreciation      -0.25680     +0.01241    +0.26921  +1.00000         5
+             Debt in Current Liabilities      +0.26975     +0.53276    +0.26301  +1.00000         5
+                     Receivables - Total      +0.57890     +0.77848    +0.19958  +1.00000         5
+         Cash and Short-Term Investments      +0.57349     +0.71954    +0.14604  +1.00000         5
+                      Cost of Goods Sold      +0.39963     +0.51764    +0.11801  +1.00000         5
+Annual Income Before Extraordinary Items      +0.26188     +0.36910    +0.10721  +1.00000         5
+                    Capital Expenditures      +0.76910     +0.86210    +0.09300  +1.00000         5
+
+  LEVELS L=4 bottom 5 by mean delta:
+                                feature_name  mean_base_r2  mean_ens_r2  mean_delta  pos_rate  n_trials
+                   Long-Term Debt - Issuance      +0.36332     +0.34034    -0.02298  +0.00000         5
+                Earnings Per Share (Diluted)      +0.20036     +0.18338    -0.01697  +0.60000         5
+                  Earnings Per Share (Basic)      +0.19616     +0.18121    -0.01495  +0.60000         5
+                         Inventories - Total      +0.90344     +0.89489    -0.00855  +0.00000         5
+Preferred/Preference Stock (Capital) - Total      +0.88672     +0.88016    -0.00657  +0.00000         5

@@ -1,0 +1,160 @@
+/student/mcnama53/Projects/Tensor Research/Code for paper/prediction_new/analyze_event_study_multi.py:513: DtypeWarning: Columns (12) have mixed types. Specify dtype option on import or set low_memory=False.
+  df = pd.read_csv(args.dataset, dtype={"gvkey": str})
+Multi-target scan: 40 feature(s) x 16 target(s)
+  primary test: FM (signed) / within-firm (magnitude); BH=exploratory, BY/Holm=robustness
+
+Wrote /student/mcnama53/Projects/Tensor Research/Code for paper/prediction_new/results/v3_holdout_ext_20260629_230144/event_study_multitarget_ext_residual_delta_v3_L4_multitarget_summary.csv  (640 pairs)
+
+======================================================================
+PRE-REGISTERED HEADLINE FAMILY (primary test, headline-FDR)
+======================================================================
+                                    feature          target      kind  n_rows primary_test  primary_t  primary_p  grid_bh  grid_by  primary_t_wins  primary_t_trim  y_top1_share  n_mad_outliers     ic_t  within_t    ls_t  ls_boot_p   hl_bh   hl_by
+               Earnings Per Share (Diluted)  abs_car_p2_p30 magnitude     951       within    -2.3616    +0.0222  +0.2843  +1.0000         -1.9074         -2.4653       +0.0077              10  +0.6526   -2.3616 -0.3593    +0.6450 +0.3288 +1.0000
+                              Pretax Income  abs_car_p2_p30 magnitude     951       within    -2.1549    +0.0361  +0.3562  +1.0000         -2.6293         -3.0163       +0.0077              10  +1.0309   -2.1549 -0.2160    +0.8100 +0.3288 +1.0000
+Quarterly Income Before Extraordinary Items  abs_car_p2_p30 magnitude     951       within    -2.0323    +0.0476  +0.3758  +1.0000         -2.5137         -3.0364       +0.0077              10  +0.9796   -2.0323 -0.0622    +0.9010 +0.3288 +1.0000
+                       Sales/Turnover (Net)  abs_car_p2_p30 magnitude     951       within    -1.9862    +0.0526  +0.3907  +1.0000         -3.9951         -4.0669       +0.0077              10  -0.2549   -1.9862 -0.3672    +0.6000 +0.3288 +1.0000
+                       Sales/Turnover (Net)       car_m1_p1    signed     960           fm    -1.1398    +0.2685  +0.7917  +1.0000         -0.7720         -0.6621       +0.0085               8  -0.8986   -0.3072 -0.8253    +0.3330 +0.9299 +1.0000
+               Earnings Per Share (Diluted)       car_m1_p1    signed     960           fm    -1.0972    +0.2862  +0.7917  +1.0000         -1.3231         -0.9743       +0.0085               8  -1.2865   -1.2956 -1.7150    +0.0660 +0.9299 +1.0000
+       Operating Activities - Net Cash Flow  abs_car_p2_p30 magnitude     951       within    -1.0596    +0.2945  +0.7917  +1.0000         -2.2476         -2.4538       +0.0077              10  -0.1906   -1.0596 -0.4402    +0.5730 +0.9299 +1.0000
+                              Pretax Income       car_m1_p1    signed     960           fm    -1.0337    +0.3142  +0.8080  +1.0000         -0.6994         -0.6041       +0.0085               8  -0.8504   -0.6508 -0.4498    +0.5940 +0.9299 +1.0000
+Quarterly Income Before Extraordinary Items       car_m1_p1    signed     960           fm    -0.9897    +0.3347  +0.8241  +1.0000         -0.6987         -0.5775       +0.0085               8  -0.9165   -0.6067 -0.2539    +0.7630 +0.9299 +1.0000
+               Earnings Per Share (Diluted) idio_vol_p2_p30 magnitude     951       within    +0.7877    +0.4347  +0.8801  +1.0000         -0.6966         +0.6954       +0.0039              20  +3.8142   +0.7877 +0.0834    +0.9170 +0.9623 +1.0000
+                       Sales/Turnover (Net)  ff3_car_p2_p30    signed     951           fm    -0.5711    +0.5750  +0.9118  +1.0000         -0.5561         -0.3293       +0.0064               1  -0.5514   -0.9177 -0.6340    +0.5120 +0.9623 +1.0000
+       Operating Activities - Net Cash Flow  ff3_car_p2_p30    signed     951           fm    -0.5218    +0.6082  +0.9127  +1.0000         -0.4597         -0.1713       +0.0064               1  -0.4857   -2.2401 -0.5646    +0.4900 +0.9623 +1.0000
+               Earnings Per Share (Diluted)      car_p2_p30    signed     951           fm    +0.5113    +0.6154  +0.9127  +1.0000         -0.0927         +0.8431       +0.0077               5  -0.5187   -2.0989 -0.2628    +0.7620 +0.9623 +1.0000
+       Operating Activities - Net Cash Flow       car_m1_p1    signed     960           fm    -0.4916    +0.6286  +0.9127  +1.0000         -0.3159         -0.1035       +0.0085               8  -0.2700   +0.1458 -0.3927    +0.6780 +0.9623 +1.0000
+                              Pretax Income  ff3_car_p2_p30    signed     951           fm    -0.4530    +0.6559  +0.9154  +1.0000         -0.3412         -0.2559       +0.0064               1  -0.5927   -0.5668 -0.4468    +0.5400 +0.9623 +1.0000
+Quarterly Income Before Extraordinary Items  ff3_car_p2_p30    signed     951           fm    -0.4214    +0.6785  +0.9236  +1.0000         -0.3085         -0.2169       +0.0064               1  -0.5408   -0.6319 -0.4918    +0.5170 +0.9623 +1.0000
+Quarterly Income Before Extraordinary Items idio_vol_p2_p30 magnitude     951       within    -0.3457    +0.7311  +0.9381  +1.0000         -0.1685         -0.5261       +0.0039              20 +10.0599   -0.3457 -0.2788    +0.7290 +0.9623 +1.0000
+Quarterly Income Before Extraordinary Items      car_p2_p30    signed     951           fm    +0.3058    +0.7633  +0.9533  +1.0000         +0.5398         +0.7216       +0.0077               5  +0.1048   -1.4928 +0.2791    +0.7760 +0.9623 +1.0000
+                              Pretax Income idio_vol_p2_p30 magnitude     951       within    -0.2739    +0.7853  +0.9581  +1.0000         -0.1032         -0.4299       +0.0039              20 +10.2035   -0.2739 +0.3026    +0.7370 +0.9623 +1.0000
+       Operating Activities - Net Cash Flow      car_p2_p30    signed     951           fm    +0.2622    +0.7961  +0.9581  +1.0000         +0.5054         +0.8101       +0.0077               5  +0.3296   -2.2847 +0.3443    +0.6310 +0.9623 +1.0000
+                              Pretax Income      car_p2_p30    signed     951           fm    +0.2461    +0.8084  +0.9581  +1.0000         +0.4759         +0.6811       +0.0077               5  +0.0280   -1.5395 +0.1044    +0.8440 +0.9623 +1.0000
+       Operating Activities - Net Cash Flow idio_vol_p2_p30 magnitude     951       within    -0.1916    +0.8489  +0.9581  +1.0000         -0.1470         -0.4544       +0.0039              20  +8.0368   -0.1916 +0.0453    +0.9880 +0.9646 +1.0000
+                       Sales/Turnover (Net)      car_p2_p30    signed     951           fm    -0.1089    +0.9145  +0.9789  +1.0000         +0.0749         +0.3903       +0.0077               5  -0.2175   -1.8594 -0.1911    +0.8480 +0.9781 +1.0000
+               Earnings Per Share (Diluted)  ff3_car_p2_p30    signed     951           fm    +0.0503    +0.9604  +0.9908  +1.0000         -0.5111         +0.1037       +0.0064               1  -0.6119   +0.4253 -0.5056    +0.5630 +0.9781 +1.0000
+                       Sales/Turnover (Net) idio_vol_p2_p30 magnitude     951       within    +0.0276    +0.9781  +0.9928  +1.0000         +0.0227         -0.2412       +0.0039              20  +8.1250   +0.0276 -0.0525    +0.9590 +0.9781 +1.0000
+
+  headline survivors at BY<0.1: 0
+
+======================================================================
+EXPLORATORY GRID (top 20 by |primary_t|; grid-FDR)
+======================================================================
+                                     feature              target      kind  n_rows primary_test  primary_t  primary_p  grid_bh  grid_by  primary_t_wins  primary_t_trim  y_top1_share  n_mad_outliers    ic_t  within_t    ls_t  ls_boot_p
+     Sale of PPE and Investments - Gain/Loss max_drawdown_p2_p60    signed     649           fm    -6.8755    +0.0000  +0.0017  +0.0121         -7.6271         -8.2881       +0.0062               3 -6.6760   +0.0232 -3.2004    +0.0150
+              Common/Ordinary Equity - Total max_drawdown_p2_p60    signed     910           fm    -5.2915    +0.0000  +0.0064  +0.0447         -5.4641         -6.2544       +0.0050               6 -6.4770   +3.6020 -5.6495    +0.0000
+                         Stockholders Equity max_drawdown_p2_p60    signed     910           fm    -5.1969    +0.0001  +0.0065  +0.0456         -5.3311         -5.9753       +0.0050               6 -6.6568   +3.4565 -5.2613    +0.0000
+Preferred/Preference Stock (Capital) - Total      abn_vol_p2_p30 magnitude     903       within    -4.9644    +0.0000  +0.0027  +0.0189         -4.1307         -5.6864       +0.0099               4 -4.0506   -4.9644 -0.2461    +0.7210
+                      Assets and Liabilities      abn_vol_p2_p30 magnitude     773       within    -4.8757    +0.0000  +0.0027  +0.0189         -3.5331         -4.8580       +0.0115               4 -2.9656   -4.8757 -0.2976    +0.7390
+       Liabilities Netting Other Adjustments      abn_vol_p2_p30 magnitude     773       within    -4.8192    +0.0000  +0.0027  +0.0189         -4.0492         -5.1228       +0.0115               4 -5.8926   -4.8192 -0.2988    +0.7970
+        Operating Activities - Net Cash Flow max_drawdown_p2_p60    signed     910           fm    -4.7514    +0.0002  +0.0120  +0.0844         -5.2366         -5.9782       +0.0050               6 -5.5424   +1.2397 -4.8106    +0.0000
+          Sale of Common and Preferred Stock max_drawdown_p2_p60    signed     857           fm    -4.7461    +0.0002  +0.0120  +0.0844         -5.1807         -7.2250       +0.0053               6 -9.3005   +2.6718 -3.8749    +0.0010
+        Investing Activities - Net Cash Flow max_drawdown_p2_p60    signed     910           fm    +4.7041    +0.0002  +0.0120  +0.0844         +5.2053         +6.8319       +0.0050               6 +7.3223   -2.7413 +4.3331    +0.0020
+                     Noncontrolling Interest max_drawdown_p2_p60    signed     910           fm    -4.6314    +0.0002  +0.0120  +0.0844         -5.2277         -6.5398       +0.0050               6 -5.5815   +1.2905 -3.6560    +0.0010
+                Comprehensive Income - Total max_drawdown_p2_p60    signed     910           fm    -4.5832    +0.0002  +0.0120  +0.0844         -5.2188         -6.8373       +0.0050               6 -5.2060   +1.0825 -3.7538    +0.0020
+                   Intangible Assets - Total max_drawdown_p2_p60    signed     910           fm    -4.5768    +0.0002  +0.0120  +0.0844         -4.9985         -5.6359       +0.0050               6 -5.2915   +1.5678 -5.1147    +0.0000
+ Quarterly Income Before Extraordinary Items max_drawdown_p2_p60    signed     910           fm    -4.5551    +0.0002  +0.0120  +0.0844         -5.0882         -6.4087       +0.0050               6 -4.8568   +1.4733 -3.4479    +0.0020
+                               Pretax Income max_drawdown_p2_p60    signed     910           fm    -4.5249    +0.0003  +0.0120  +0.0844         -5.0231         -6.1158       +0.0050               6 -4.7700   +1.2773 -4.9513    +0.0000
+                        Sales/Turnover (Net) max_drawdown_p2_p60    signed     910           fm    -4.4284    +0.0003  +0.0133  +0.0935         -4.6712         -4.8463       +0.0050               6 -4.2061   +2.1898 -3.9233    +0.0000
+        Operating Income Before Depreciation max_drawdown_p2_p60    signed     909           fm    -4.4177    +0.0003  +0.0133  +0.0935         -4.6904         -5.2607       +0.0050               7 -4.1985   +0.6258 -4.3214    +0.0000
+                         Receivables - Total max_drawdown_p2_p60    signed     910           fm    -4.2033    +0.0005  +0.0180  +0.1267         -4.3825         -4.4218       +0.0050               6 -3.4856   +1.6396 -3.2842    +0.0000
+      Non-Operating Income (Expense) - Total max_drawdown_p2_p60    signed     910           fm    -4.1489    +0.0006  +0.0191  +0.1346         -4.5130         -5.1882       +0.0050               6 -4.4140   +2.2161 -3.1276    +0.0070
+             Cash and Short-Term Investments max_drawdown_p2_p60    signed     910           fm    -4.1311    +0.0006  +0.0191  +0.1346         -4.3246         -4.2683       +0.0050               6 -3.4424   +1.0506 -2.7422    +0.0010
+                          Cost of Goods Sold max_drawdown_p2_p60    signed     909           fm    -4.0589    +0.0007  +0.0205  +0.1443         -4.1725         -4.1266       +0.0050               7 -3.0151   +1.9952 -3.3549    +0.0010
+  survivors at grid_bh<0.1: 35
+  survivors at grid_by<0.1: 16
+
+======================================================================
+OUTLIER ROBUSTNESS of grid survivors (raw vs winsor vs trimmed)
+======================================================================
+                                     feature              target      kind  primary_t  primary_t_wins  primary_t_trim  y_top1_share  n_mad_outliers    ls_t
+     Sale of PPE and Investments - Gain/Loss max_drawdown_p2_p60    signed    -6.8755         -7.6271         -8.2881       +0.0062               3 -3.2004
+              Common/Ordinary Equity - Total max_drawdown_p2_p60    signed    -5.2915         -5.4641         -6.2544       +0.0050               6 -5.6495
+                         Stockholders Equity max_drawdown_p2_p60    signed    -5.1969         -5.3311         -5.9753       +0.0050               6 -5.2613
+Preferred/Preference Stock (Capital) - Total      abn_vol_p2_p30 magnitude    -4.9644         -4.1307         -5.6864       +0.0099               4 -0.2461
+                      Assets and Liabilities      abn_vol_p2_p30 magnitude    -4.8757         -3.5331         -4.8580       +0.0115               4 -0.2976
+       Liabilities Netting Other Adjustments      abn_vol_p2_p30 magnitude    -4.8192         -4.0492         -5.1228       +0.0115               4 -0.2988
+        Operating Activities - Net Cash Flow max_drawdown_p2_p60    signed    -4.7514         -5.2366         -5.9782       +0.0050               6 -4.8106
+          Sale of Common and Preferred Stock max_drawdown_p2_p60    signed    -4.7461         -5.1807         -7.2250       +0.0053               6 -3.8749
+        Investing Activities - Net Cash Flow max_drawdown_p2_p60    signed    +4.7041         +5.2053         +6.8319       +0.0050               6 +4.3331
+                     Noncontrolling Interest max_drawdown_p2_p60    signed    -4.6314         -5.2277         -6.5398       +0.0050               6 -3.6560
+                Comprehensive Income - Total max_drawdown_p2_p60    signed    -4.5832         -5.2188         -6.8373       +0.0050               6 -3.7538
+                   Intangible Assets - Total max_drawdown_p2_p60    signed    -4.5768         -4.9985         -5.6359       +0.0050               6 -5.1147
+ Quarterly Income Before Extraordinary Items max_drawdown_p2_p60    signed    -4.5551         -5.0882         -6.4087       +0.0050               6 -3.4479
+                               Pretax Income max_drawdown_p2_p60    signed    -4.5249         -5.0231         -6.1158       +0.0050               6 -4.9513
+                        Sales/Turnover (Net) max_drawdown_p2_p60    signed    -4.4284         -4.6712         -4.8463       +0.0050               6 -3.9233
+        Operating Income Before Depreciation max_drawdown_p2_p60    signed    -4.4177         -4.6904         -5.2607       +0.0050               7 -4.3214
+
+  grid survivors with |winsorized primary t| >= 2: 16 / 16
+
+======================================================================
+VOL-RISK: is |CP increment| incremental to EXPECTED vol?
+  v* = vs LAGGED realized vol (pre_vol) ; iv* = vs option-IMPLIED
+  *ctrl_t = pooled OLS vol~bench+|incr| ; *pic_t = partial rank-IC
+  *surp_ls_* = straddle-PnL-proxy LS on (realized - benchmark)
+======================================================================
+                                     feature              target  within_t  vctrl_t  vpic_t  vsurp_ls_boot_p  ivctrl_t  ivpic_t  ivsurp_ls_mean  ivsurp_ls_t  ivsurp_ls_boot_p
+       Liabilities Netting Other Adjustments     idio_vol_p2_p30   -0.4075  -3.9467 -3.3246          +0.0060   -2.7875  -5.4195         -0.0009      -1.2859           +0.1600
+Preferred/Preference Stock (Capital) - Total     idio_vol_p2_p30   -0.0705  -4.8882 -3.3575          +0.0000   -2.7144  -4.5751         +0.0008      +1.2427           +0.1330
+                      Assets and Liabilities     idio_vol_p2_p30   +0.0223  -3.7067 -2.4542          +0.0010   -2.5734  -7.2052         -0.0015      -3.5057           +0.0000
+                         Sale of Investments     idio_vol_p2_p30   +0.1075  -0.5765 -1.4837          +0.7960   -2.3563  -5.9567         -0.0024      -3.3951           +0.0000
+                                Acquisitions     idio_vol_p2_p30   -0.2894  -0.4641 -1.0863          +0.7140   -2.2231  -5.5093         -0.0017      -3.6435           +0.0000
+        Financing Activities - Net Cash Flow     idio_vol_p2_p30   +0.1995  +0.0219 +0.3435          +0.8660   -2.0841  -4.3068         -0.0014      -3.1573           +0.0000
+        Investing Activities - Net Cash Flow realized_vol_p2_p30   -1.3432  +1.8152 +3.1974          +0.5770   +2.0359  +2.2019         -0.0004      -0.7625           +0.4530
+                Earnings Per Share (Diluted) realized_vol_p2_p30   +2.0442  +0.4550 +0.8353          +0.4840   +2.0354  +0.2334         +0.0008      +1.2960           +0.0990
+                  Earnings Per Share (Basic) realized_vol_p2_p30   +2.0347  +0.4638 +0.8560          +0.5010   +2.0232  +0.2330         +0.0009      +1.3365           +0.1120
+          Sale of Common and Preferred Stock realized_vol_p2_p30   -1.4198  +1.4523 +3.1696          +0.3460   +1.9669  +2.2150         +0.0006      +0.9436           +0.3310
+      Non-Operating Income (Expense) - Total realized_vol_p2_p30   -1.2927  +1.6208 +2.2191          +0.3840   +1.9510  +1.7798         -0.0003      -0.4821           +0.6600
+Preferred/Preference Stock (Capital) - Total realized_vol_p2_p30   +3.7904  -1.9874 -0.0795          +0.1260   +1.8424  +0.8061         +0.0019      +2.9598           +0.0050
+                Comprehensive Income - Total realized_vol_p2_p30   -0.8041  +1.8236 +2.5950          +0.2030   +1.8400  +0.6984         -0.0011      -1.6647           +0.1190
+         Excess Tax Benefit of Stock Options     idio_vol_p2_p30   +1.8085  -0.4741 -0.6331          +0.9170   -1.8106  -2.9392         -0.0002      -0.4361           +0.5650
+                                Income Taxes realized_vol_p2_p30   -0.0264  +0.9450 +1.2532          +0.2770   +1.7942  +0.8938         -0.0003      -0.5645           +0.5540
+                              Cash Dividends     idio_vol_p2_p30   +1.2295  +0.0787 -0.1823          +0.9180   -1.7878  -3.0324         -0.0015      -3.2233           +0.0000
+     Sale of PPE and Investments - Gain/Loss realized_vol_p2_p30   +0.8181  +1.3638 +2.5617          +0.7550   +1.7584  +2.7207         -0.0004      -0.5680           +0.4990
+          Sale of Common and Preferred Stock     idio_vol_p2_p30   +0.6317  +0.9383 +2.9861          +0.1000   +1.6409  +3.1990         -0.0004      -0.6897           +0.4210
+ Quarterly Income Before Extraordinary Items realized_vol_p2_p30   -0.7652  +1.9613 +2.6104          +0.5280   +1.6367  +0.4831         -0.0008      -1.1327           +0.2380
+                         Inventories - Total     idio_vol_p2_p30   +0.3286  +0.3610 +0.9591          +0.8720   -1.5915  -4.3920         -0.0029      -5.5712           +0.0000
+  |t|>=2 after lagged-vol control (vctrl): 6 / 80
+  |t|>=2 after lagged-vol partial-IC (vpic): 34 / 80
+  |t|>=2 after IMPLIED-vol control (ivctrl): 9 / 80
+  |t|>=2 after IMPLIED-vol partial-IC (ivpic): 30 / 80
+  straddle-proxy LS (lagged benchmark) boot p<0.1: 6 / 80
+  straddle-proxy LS (IMPLIED benchmark) boot p<0.1: 40 / 80
+
+=== per-target outlier detection (robust MAD > 5.0) ===
+                 target  n_events  n_mad_out worst_gvkey worst_quarter  worst_value
+              car_m1_p1       960          8      012142        2025Q3      +0.3887
+             car_p2_p10       959          8      184996        2021Q3      +0.2959
+             car_p2_p30       951          5      010903        2025Q1      -0.4382
+             car_p2_p60       910          5      036910        2023Q1      +0.6381
+          ff3_car_m1_p1       960          8      012142        2025Q3      +0.3789
+         ff3_car_p2_p10       959          5      184996        2021Q3      +0.2202
+         ff3_car_p2_p30       951          1      010903        2025Q2      +0.3498
+         ff3_car_p2_p60       910          4      184996        2022Q3      -0.6668
+         abs_car_p2_p30       951         10      010903        2025Q1      +0.4382
+    downside_car_p2_p30       951          5      010903        2025Q1      -0.5463
+ff3_downside_car_p2_p30       951          8      010903        2025Q1      -0.4356
+    realized_vol_p2_p30       951         18      036910        2024Q4      +0.0578
+        idio_vol_p2_p30       951         20      010903        2025Q1      +0.0463
+          abn_vol_m1_p1       920          1      147579        2022Q1      +2.3372
+         abn_vol_p2_p30       903          4      006266        2023Q2      +1.7974
+    max_drawdown_p2_p60       910          6      036910        2021Q4      -0.5414
+
+=== per-target best feature (by |primary_t|) ===
+                 target      kind                                 best_feature  primary_t  primary_p  grid_by    ls_t  ls_boot_p
+              car_m1_p1    signed                                 Acquisitions    -1.8192    +0.0856  +1.0000 -0.4817    +0.5320
+             car_p2_p10    signed          Excess Tax Benefit of Stock Options    +2.9249    +0.0090  +0.9868 +2.1382    +0.0360
+             car_p2_p30    signed                       Assets and Liabilities    -1.6414    +0.1181  +1.0000 -1.0637    +0.3160
+             car_p2_p60    signed          Excess Tax Benefit of Stock Options    +1.6345    +0.1195  +1.0000 +1.7591    +0.0160
+          ff3_car_m1_p1    signed                                 Acquisitions    -1.8444    +0.0816  +1.0000 -0.2160    +0.7700
+         ff3_car_p2_p10    signed                                 Acquisitions    -2.2947    +0.0340  +1.0000 -2.8127    +0.0010
+         ff3_car_p2_p30    signed               Short-Term Investments - Total    -0.8148    +0.4258  +1.0000 -0.5130    +0.5640
+         ff3_car_p2_p60    signed                   Earnings Per Share (Basic)    +1.3327    +0.1992  +1.0000 -0.3670    +0.7170
+         abs_car_p2_p30 magnitude                 Earnings Per Share (Diluted)    -2.3616    +0.0222  +1.0000 -0.3593    +0.6450
+    downside_car_p2_p30    signed Preferred/Preference Stock (Capital) - Total    +3.8454    +0.0012  +0.1977 +2.9658    +0.0000
+ff3_downside_car_p2_p30    signed           Sale of Common and Preferred Stock    -3.5513    +0.0023  +0.3426 -3.2310    +0.0000
+    realized_vol_p2_p30 magnitude Preferred/Preference Stock (Capital) - Total    +3.7904    +0.0004  +0.1094 +0.1142    +0.9330
+        idio_vol_p2_p30 magnitude     Annual Income Before Extraordinary Items    -2.4064    +0.0211  +1.0000 -0.4716    +0.6190
+          abn_vol_m1_p1 magnitude                          Stockholders Equity    +3.7082    +0.0005  +0.1267 +0.2806    +0.7890
+         abn_vol_p2_p30 magnitude Preferred/Preference Stock (Capital) - Total    -4.9644    +0.0000  +0.0189 -0.2461    +0.7210
+    max_drawdown_p2_p60    signed      Sale of PPE and Investments - Gain/Loss    -6.8755    +0.0000  +0.0121 -3.2004    +0.0150
