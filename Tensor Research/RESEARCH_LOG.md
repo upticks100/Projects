@@ -96,6 +96,59 @@ Artifacts: results/v3_holdout_499_20260706/{cds_h1_translation_499.csv,
 h1_pd_translation_499.csv}, pre_prediction_cache/event_study_499/
 {cds_markit.csv.gz, cds_link_audit.csv}.
 
+### EXPLORATORY addendum (same evening) — spread-tercile heterogeneity
+Q (user): are the nulls large-cap-IG artifacts? Within-quarter terciles of
+pre-event spread level (medians 35 / 56 / 94 bp), all 4 cells:
+- d_logcds slope: FLAT across terciles, interaction sig×spread ns (t −0.3..
+  −1.1). No gradient — but note the "high" tercile median is 94 bp, still
+  BBB-ish; genuine HY (300bp+) is essentially absent from a top-499-by-mktcap
+  universe, so this does NOT refute "prices in HY", it only says the gradient
+  within IG is flat.
+- d_dd slope: CONCENTRATES in the high-spread tercile in all 4 cells
+  (+0.017..+0.024, t +1.8..+2.2) and is ns in the low tercile (t +0.5..+1.1).
+  The credit channel lives among the riskier half of the universe —
+  consistent with the effect strengthening down the quality spectrum.
+NOT pre-registered; treat as motivation for a future HY/crossover extension,
+not a claim. Paper framing: state the universe boundary explicitly (results
+are for the mega/large-cap IG segment; return null, IV subsumption, and CDS
+null may all reflect the most-arbitraged corner of the market).
+
+### DECLARED (same evening, before running) — veer → EQUITY RETURNS test
+Gap check: Part 2's return null was for the CP-increment signal around
+announcements; the veer/drift signals were routed only to d_dd/d_logpe/d_iv.
+drift_cashflow → forward equity returns is UNTESTED. Economic motivation:
+equity is a call on the firm; if drift_cashflow moves credit (confirmed,
+d_dd), levered/low-DD equity is where it should show up — and the d_dd
+effect concentrates in the risky tercile.
+Design (EXPLORATORY, declared before running; expected sign POSITIVE):
+  target   fwd market-adjusted buy-hold return +2td..+63td after ann_date
+  control  pre-event abnormal return −65td..−2td (momentum guard)
+  tests    (a) FM slope w/ control, (b) within-quarter tercile LS portfolio
+           (top−bottom drift_cashflow), mean/t/Sharpe over quarters
+  slices   full panel; within-quarter dd_pre terciles (risky = low DD)
+  cells    all 4. Script: prediction_new/veer_return_test.py
+If null: tradeability verdict for this universe is closed; HY extension is
+the remaining route. Results below.
+
+RESULTS (n=6,380 events/cell, 14 quarters; one bug fixed before results were
+read: initial run silently used the 50-firm link table via the imported
+module default -> only 660 events; veer_return_test.py now loads the 499
+link table directly):
+- FM slope: ~0 everywhere (t −0.9..+0.7). No linear cross-sectional return
+  predictability from drift_cashflow. Matches Part 2's return null.
+- Tercile LS: positive in all 4 cells (+0.34..+0.90%/q, t +0.7..+1.7,
+  SR 0.4..0.9) but nothing crosses t=2 on the full panel. NOT tradeable
+  evidence: 14 quarters, correlated cells, and the FM says the linear
+  signal is zero.
+- Slices: effect is NOT in the risky-DD tercile (t ~0.1-0.5 there, contra
+  the levered-equity story); the single t=+2.22 (ridge L4, SAFE tercile,
+  +1.17%/q, SR 1.18) is 1 of 12 slices = multiple-testing noise until it
+  replicates. Do NOT chase without a pre-registered replication design.
+VERDICT: equity-return route in the mega/large-cap universe is CLOSED
+(now tested for both CP-increment and veer signals). Tradeability options
+remaining: HY/crossover credit extension (where d_dd concentrates), or a
+small-cap universe. Artifact: veer_return_test_499.csv.
+
 ---
 
 ## 2026-07-07 — ★ 499 SCALE-UP COMPLETE: transfer PASS, H1 partially confirmed, H2 confirmed-but-negligible
