@@ -48,9 +48,10 @@ SEED = 42
 TEST_START_TARGET_QUARTER = os.environ.get("PRED_TEST_START_Q", "2021Q1")
 
 # Universe is selected programmatically from v2 fundamentals: top-N firms by
-# market cap (mkvaltq) at the reference quarter. Reproducible and avoids
-# survivorship bias from a hand-curated list.
-UNIVERSE_TOP_N: int = 50
+# market cap (mkvaltq) at the reference quarter. Reproducible fixed 2024Q4
+# large-cap universe. PRED_UNIVERSE_TOP_N env override added 2026-07-06 for the
+# 499-firm scale-up (all other hyperparameters stay frozen).
+UNIVERSE_TOP_N: int = int(os.environ.get("PRED_UNIVERSE_TOP_N", "50"))
 UNIVERSE_REF_QUARTER: str = "2024Q4"  # quarter at which we measure market cap
 
 

@@ -10,6 +10,192 @@ distilled version that's actually worth reading later.
 
 ---
 
+## 2026-07-07 — ★ 499 SCALE-UP COMPLETE: transfer PASS, H1 partially confirmed, H2 confirmed-but-negligible
+
+Timeline: caches 19:28 → OOM incident + gram fitter (entries below) → all 4
+dumps by 22:42 → gate PASS → veer test ran same night. One fix on 07-07: the
+elastic-net stage skipped every fold at 499 (control-only vs control+veer
+models scored DIFFERENT dropna subsets; coincided at 50 mega-caps, diverged on
+the sparser 499 panel). Fixed to a common frame (both models fit/scored on
+identical rows); only the EN section changed on re-run — FM/IC/clustering
+numbers untouched.
+
+### Transfer check (locked hyperparams, 498 firms, 22 test windows) — PASS 4/4
+  ridge L2:    base .745 → ens .759  (delta +.014 | 50-firm +.019)
+  ridge L4:    base .751 → ens .762  (delta +.011 | 50-firm +.011)
+  residual L2: base .691 → ens .709  (delta +.018 | 50-firm +.048)
+  residual L4: base .693 → ens .713  (delta +.020 | 50-firm +.043)
+CP structure is NOT a mega-cap artifact — delta positive everywhere — but the
+residual-cell edge is ~2.5x smaller on the wide universe (mega-cap tilt).
+
+### ★ H1 drift_cashflow → d_dd (pre-registered): CONFIRMED 2/4, directional 4/4
+Slope ≈ +0.020 in ALL four cells (remarkably stable); one-sided p<0.05 in both
+residual cells (L2 p=.040, L4 p=.033), near-miss in ridge (L2 p=.060, L4
+p=.071); partial-IC t +2.1..+2.6 in all 4. vs 50-firm: slope halves (+.039 →
++.020) but n grows 10x (6,889 events). Verdict: real, replicating directional
+effect — persistent cash-flow over-performance vs model forecast precedes
+credit improvement. Paper framing: pre-registered confirmation in the residual
+architecture, consistent sign everywhere.
+
+### H2 veers → d_iv (pre-registered): formally 3/4, economically NEGLIGIBLE
+EN OOS dR2: resid L2 +.0020, resid L4 +.0032, ridge L2 +.0026, ridge L4
+−.0006 (n=2,436; IV targets end 2025Q2 — OptionMetrics stops 2025-08). The
+50-firm +.027 collapses ~10x at scale. Honest verdict: DO NOT headline —
+consistent with Part 2's IV-subsumption story (options already price what the
+veers know). Fold into that narrative.
+
+### Exploratory (BY<0.1 over the 33-pair grid per cell)
+- earnings → d_logpe (negative, huge t): the KNOWN mechanical denominator
+  artifact; persists at 499; ignore per first-look verdict.
+- NEW: veer_leverage → d_dd, slope ≈ −0.09, BY≈.03-.04 in BOTH ridge cells
+  (debt surprises above forecast → DD deterioration). Economically sensible.
+- NEW: veer_investment → d_dd, slope ≈ −0.008..−0.010, BY≈.03-.05 in BOTH
+  residual cells (capex overshoot → credit deterioration).
+  Ridge cells see the leverage channel, residual cells the investment channel —
+  candidates for the next pre-registration, NOT claims.
+- Error clustering: STILL NULL at 499 (ARI vs GICS ≈ .006, top-PC share 3.8%,
+  mean |error corr| .064) — errors are idiosyncratic; kills anomaly idea #3
+  more decisively than the 50-firm null.
+
+Artifacts: results/v3_holdout_499_20260706/ (dumps, transfer_check_499.csv,
+veer_report/grid/panel_*_499). Closeout: handoff pointer updated, summaries
+pushed to GitHub.
+
+---
+
+## 2026-07-06 (evening) — 499-FIRM SCALE-UP: data landed + PRE-REGISTRATION (read before running)
+
+### WRDS pull for the full universe — DONE (fetch_universe_499.py, one Duo tap)
+Output: `pre_prediction_cache/event_study_499/` (append-only; 50-firm caches untouched).
+- link_table.csv: 649 rows; 497/499 gvkeys linked (2 without CRSP link) → 556 permnos.
+- daily_returns.csv.gz: 2,442,083 rows, 525 permnos, 2005-01-01..2026-07-06
+  (crsp.dsf legacy through 2024-12-31 + wrds_dsfv2 2025+), ret density 99.98%.
+- daily_market.csv: 5,283 rows across both eras.
+- optionmetrics_iv.csv.gz: 2,387,383 secid-dates, 527 permnos, iv_30d/iv_60d,
+  2005..2025-08 (optionm.vsurfd2026 does not exist yet on WRDS — expected).
+
+### ★ PRE-REGISTRATION (locked BEFORE any 499-firm test is run)
+Headline family for the 499 veer test — exactly two hypotheses, both generated
+by the 50-firm first look (2026-07-06 entry below) and now to be falsified:
+  H1: drift_cashflow → d_dd. FM-with-controls slope POSITIVE (firms persistently
+      beating cash-flow forecasts see distance-to-default improve). Primary stat:
+      FM t with controls (dd_pre, d_dd_pre); support: partial rank-IC.
+  H2: veers → d_iv. Elastic-net OOS ΔR² > 0 for d_iv (controls iv_pre, d_iv_pre
+      vs controls+veers), expanding folds.
+EVERYTHING ELSE (full grid, asymmetry, other themes/targets, error-clustering)
+is EXPLORATORY, reported with BY correction and labeled as such.
+
+### Locked-hyperparameter rationale (NO re-tuning at 499)
+Refits reuse the 4 cells' frozen hyperparams (e.g. ridge_delta_v3 L2: CP rank 4,
+REG_W≈23.3, gamma≈0.75; imputation ranks [2,2,2]/[4,4,4]). Re-searching at 499
+would reopen the forking-paths problem the Part 2 discipline killed. Suboptimal
+transfer only makes forecast errors noisier → biases AGAINST the veer signal
+(conservative). GATE: after refit, check base/ensemble R² + delta vs the 50-firm
+values; if CP delta collapses on the wider universe, STOP and report ("CP
+structure is a mega-cap phenomenon" is a finding, not a bug).
+
+### Execution notes
+- Universe knob: PRED_UNIVERSE_TOP_N env override (config edit 2026-07-06);
+  caches to prediction_new/tensor_cache_499/ via PRED_CACHE_DIR.
+- MFI rebuild folded in (audit Finding 1): full 1990Q1-2024Q4 tensor on v2/40
+  spec, Tucker [67,40,20], persist S/F/T/core/D̂ (unlocks anomaly B/C/D/E gate),
+  re-run MFI↔FCIX ρ + independence tests. Script: rebuild_mfi_tensor_v2.py →
+  pre_prediction_cache/mfi_v2/.
+- All long jobs launched detached (setsid nohup, logs on NFS) — robust to user
+  disconnect. Orchestrator: prediction_new/run_499_scaleup.sh (idempotent).
+
+### PARKED PROPOSAL (2026-07-06 21:30) — MASKED CP regression arm ("v4"); decide AFTER 499 run
+Idea (user): while the 499 refits grind, run a parallel arm testing whether a
+properly MASKED CP regression beats the locked unmasked Optuna trials in the
+4-cell design. Context: the current fit multiplies (Y - baseline) by the mask,
+so unobserved target cells enter as fake zero-residual targets → shrinkage of
+CP toward the baseline. Cheap to build now: cp_regressor_lowmem.py assembles
+the normal equations row-by-row, so masking = dropping unobserved rows for the
+X-side factor updates (+ per-slice (r×r) solves on the y-side); ~50 lines + an
+all-ones-mask equivalence test.
+Assessment / pre-set decision rules (BEFORE any result is seen):
+1. QUARANTINE: the in-flight 499 pre-registered test runs on the locked
+   UNMASKED cells no matter what the masked arm shows. Masked is v4/appendix
+   ("robust to proper missing-data treatment"), never a mid-run swap —
+   otherwise the pre-registration is dead.
+2. Two-step design at 50 firms first (cheap; trials are minutes, not hours):
+   (a) refit the 4 locked cells with masked fit, SAME hyperparams — isolates
+   the estimator change; (b) fresh masked Optuna search, same budget/CV
+   protocol/journal machinery — tests whether masking shifts the optimum.
+   Ridge/FE baselines stay exactly as-is (they define the delta objectives).
+3. Honest prior: masked is NOT guaranteed to win. Zero-residual cells act as
+   regularization toward baseline; if missingness is informative (mega-caps
+   report almost everything; 50-firm density ~97%), dropping them can hurt.
+   Effect should be LARGER at 499 (88.4% density) — which is where it matters.
+4. Success metric: same CV objective as the locked search; winner gets ONE
+   test-set evaluation. Report either way (a masked loss is also a finding:
+   the zero-fill convention is not just harmless, it helps).
+STATUS: parked by user decision — reconsider once the 499 scale-up closes out.
+
+### CP FITTER VALIDATION + SECOND OOM MODE (2026-07-06 22:00) — Gram fitter ADOPTED for all 4 cells
+The first low-mem fitter (sample-blocked design matrix) fixed OOM #1 but died
+at a SECOND memory bomb inherited from tensorly: the small-factor (lookback)
+update materializes the joint Khatri-Rao over all other factors — ~400M rows
+(~41 GB) at 498 firms. Rewrote cp_regressor_lowmem.py to the classic CP-ALS
+Gram identity: phi'phi = (Z'Z) ∘ expanded (K'K), phi'y assembled via einsum —
+neither the design matrix nor the joint KR is ever formed. Bonus: the firms²
+flop factor drops out; the 50-firm ridge-L2 refit went 641s → 10s.
+
+VALIDATION (before deploying):
+1. Small-scale: gram fitter == stock tensorly EXACTLY (0.0 diff, same iters).
+2. Real 50-firm scale, few iterations: rel weight diff 4.8e-9 after 1 iter,
+   ~1e-6 after 3-50 iters → update equations mathematically identical; larger
+   long-run differences are fp-rounding amplified by ALS, not bias.
+3. ★ FINDING — CP-ALS at this scale is fp-CHAOTIC: refitting the SAME locked
+   ridge-L2 cell with STOCK tensorly today gives max prediction diff 4.4-4.6
+   vs the June dump (R2 0.78389-0.78392 vs 0.78301); OMP2 vs OMP8 stock differ
+   by 0.63. Gram runs scatter similarly (R2 0.7791-0.7828). Across ALL seven
+   validation runs: ensemble R2 in [0.7791, 0.7839], base identical at 0.7637,
+   delta always positive (+0.015..+0.020). Implication: "locked" can only mean
+   locked hyperparameters + estimator family — exact predictions were never
+   bit-reproducible across BLAS thread counts / library builds, even in June.
+   Cell-level R2 claims carry ~±0.003 fitter-noise; the Part 1 deltas (2-5x
+   that) are unaffected.
+DECISION: gram fitter (PRED_CP_LOWMEM=1) adopted for ALL four 499 cells —
+uniform fitter removes a cross-cell confound; ridge cells restarted too (sunk
+cost ~2.5h, CP fit now seconds; ridge-OOF baseline unchanged and dominates).
+All 4 relaunched ~22:12 with OMP=20. Equivalence tests: test_cp_lowmem_equiv.py.
+
+### 499 REFIT INCIDENT + FIX (2026-07-06 ~21:00) — residual cells OOM'd; exact low-mem CP fitter
+The two residual_delta_v3 refits (CP rank 12-13) crash-looped on utmlab10-05/07:
+stock tensorly CPRegressor materializes a design matrix whose size scales with
+firms², ≈65 GB at 498 firms — over the hosts' 62 GB. Silent SIGKILL (OOM), 4
+relaunches, no traceback. Fix: prediction_new/cp_regressor_lowmem.py —
+LowMemCPRegressor accumulates the normal equations (φ'φ, φ'y) over sample
+blocks; line-for-line port of the tensorly fit (same init, same reg, same
+convergence). test_cp_lowmem_equiv.py: weight tensors + predictions agree
+EXACTLY (rel diff 0.0) with stock at block sizes 1/4/100 → estimator unchanged,
+locked-hyperparameter discipline intact. Enabled via PRED_CP_LOWMEM=1 in
+run_499_scaleup.sh (ridge cells untouched — rank 4-5 fits in RAM and they were
+already 1.5h into healthy runs). RSS after fix: ~3 GB. NOTE: utmlab10-07 went
+unresponsive from the OOM thrashing; residual L4 moved to idle utmlab10-04.
+Threads raised 8→20 (hosts are 24-core and otherwise idle). Expect ridge dumps
+in hours, residual in ~1-3 days (cost scales ~firms² vs the 50-firm 1-2 h runs).
+
+### MFI v2 REBUILD — DONE (2026-07-06 19:30): Tier-0 result SURVIVES, un-provisional
+rebuild_mfi_tensor_v2.py → pre_prediction_cache/mfi_v2/. Clean v2/40 tensor:
+499 firms × 40 features × 140 quarters (1990Q1-2024Q4), 74.0% observed density
+(v1 was polluted by 12 structurally-empty features). Mask-aware Tucker
+[67,40,20], RMS-scaled, SVD init: observed relative error **5.45%** (the old
+22.2% figure reflected the polluted tensor + random init). Artifacts persisted:
+S/F/T factors + core + D̂ (tucker_v2_decomposition.joblib) — anomaly ideas
+B/C/D/E now unlocked.
+- MFI_v2 ↔ MFI_v1: ρ = 0.60 (same object, cleaner).
+- MFI_v2 ↔ FCIX: **ρ = 0.318** (paper claimed ≈0.33 — holds).
+- Gretton–Györfi (6 equal-freq bins, 10,000 perms): L_n = 0.546 (crit 1% =
+  0.459), I_n = 0.237 (crit 1% = 0.174), perm p ≈ 1e-4 both → **independence
+  REJECTED at 1%** — matches the paper's Table (0.544 / 0.242) almost exactly.
+VERDICT: audit Finding 1 resolved; MFI↔FCIX is now grounded in the clean
+tensor and the "provisional" flag on Tier-0 item 2 is lifted. Paper exhibits
+should cite the v2 numbers (error 5.45%, ρ 0.318, L_n 0.546 / I_n 0.237).
+
+---
+
 ## 2026-07-06 (audit intake) — external audit verified core; CORRECTION to feature-count note
 
 External LLM audit (full log + handoff + draft vs artifacts): 4-cell numbers, leakage
@@ -32,15 +218,21 @@ marker was added at the original note.
 
 ### Audit triage
 1. (Finding 1, MAJOR) MFI/FCIX exhibits built from the polluted v1 tensor, never
-   rebuilt → **Tier-0 item 2 (MFI↔FCIX ρ≈0.33, 1% indep. rejection) is PROVISIONAL
-   until rebuilt**; ρ may move. FOLD-IN: the 499-firm scale-up already requires a
-   full-universe v2 tensor build — same build serves the MFI rebuild; regenerate
-   MFI/FCIX exhibits + Gretton tests + CP-error curve from it.
+   rebuilt → **RESOLVED 2026-07-06 (evening entry above)**: v2/40 rebuild done
+   (rebuild_mfi_tensor_v2.py); ρ = 0.318 (vs claimed ≈0.33), L_n/I_n reject at
+   1% (0.546/0.237 vs paper 0.544/0.242), observed error 5.45%. Result survives.
 2. (Finding 3) main.tex still headlines discredited legacy results (pre-v2, pooled-R²
    era); main.pdf is a Jan vintage — write-up track, with the honest v3 story.
-3. (Finding 4) NO off-site backup of journals/results/logs; repo has 2 unpushed
-   commits and tracks licensed-derived tensor_cache/*.pkl (must untrack before any
-   push). Execute backup BEFORE the 499 compute run.
+3. (Finding 4) NO off-site backup of journals/results/logs. **EXECUTED 2026-07-06
+   evening**: untracked tensor_cache/*.pkl (licensed), committed RESEARCH_LOG,
+   CP_RIDGE_HANDOFF, prediction_new code, all 16 Optuna journals, result
+   summaries/reports (t-stats only, no licensed row-level data), veer experiment;
+   rebased onto remote (Mac-side deletions) and pushed → github.com/upticks100/
+   Projects @ 37ddde6. Push auth: new passphrase-less ~/.ssh/id_ed25519_github
+   key (old lab keys were passphrase-locked), ssh config Host github.com block.
+   REMAINING: licensed .pkl still in OLD commit history (private repo; purge =
+   history rewrite + force-push, deferred); OneDrive copy of _part1_frozen not
+   yet made.
 4. (Finding 5) Handoff "authoritative plan" section is stale (April state) —
    needs superseding addendum. Write-up track.
 5. (Minor) ridge-L2 ext report exists only as FLAGGED_volrisk_...txt (naming);
@@ -150,9 +342,9 @@ all structural ideas). Only the dump-based ideas run free today.
 ### Tier 0 — RESULTS IN HAND (the paper's spine)
 1. CP beats Ridge on next-q fundamentals, esp. less-stationary features (Part 1).
 2. MFI↔FCIX: aggregate fundamentals-vol depends on price-vol (ρ≈0.33, indep.
-   rejected 1%). Macro result. **PROVISIONAL (audit 2026-07-06): computed from the
-   polluted 39-feat v1 tensor; must be rebuilt on v2/40 (fold into 499 tensor
-   build) — ρ may move.**
+   rejected 1%). Macro result. **CONFIRMED on clean v2/40 rebuild 2026-07-06:
+   ρ=0.318, L_n/I_n reject at 1%, observed error 5.45% (see MFI v2 REBUILD
+   entry). Provisional flag lifted.**
 3. Micro-analog (honest): CP increment concordant w/ option-implied vol — REAL but
    SUBSUMED by IV; event returns a clean NULL. "Vol structure lives in
    fundamentals; prices already reflect it."

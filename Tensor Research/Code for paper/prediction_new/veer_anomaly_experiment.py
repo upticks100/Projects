@@ -66,6 +66,23 @@ EVENT_DIR = PARENT_DIR / "pre_prediction_cache" / "event_study_extended"
 FUNDAMENTALS = PARENT_DIR / "90-26_Q_Fundamentals_v2_extended.csv"
 GICS_FILE = PARENT_DIR / "gvkeys_to_gics.csv"
 
+# Pre-registered headline family for the 499-firm falsification run (log entry
+# 2026-07-06 evening). Everything else in the report is EXPLORATORY.
+HEADLINE = (
+    ("H1", "drift_cashflow", "d_dd", "FM slope with controls, expected +"),
+    ("H2", "EN(all veers)", "d_iv", "elastic-net OOS dR2 > 0"),
+)
+
+_EVENT_DIR = EVENT_DIR  # set from --event-dir in main()
+
+
+def _ep(name: str) -> Path:
+    """Resolve a data file in the event dir, accepting gzipped variants."""
+    for cand in (_EVENT_DIR / name, _EVENT_DIR / f"{name}.gz"):
+        if cand.exists():
+            return cand
+    raise SystemExit(f"missing {name}[.gz] in {_EVENT_DIR}")
+
 TRADING_DAYS_YR = 252
 POST_OFFSET = 63          # +63 trading days (~1 quarter) after announcement
 PRE_OFFSET = -2           # strictly ex-ante read
@@ -151,6 +168,11 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--enet-start", type=int, default=8,
                    help="first OOS quarter index for the elastic net")
     p.add_argument("--fundamentals", type=Path, default=FUNDAMENTALS)
+    p.add_argument("--event-dir", type=Path, default=EVENT_DIR,
+                   help="dir with link_table/daily_returns/daily_market/"
+                        "optionmetrics_iv (csv or csv.gz)")
+    p.add_argument("--tag", default="",
+                   help="suffix for output filenames (e.g. '499')")
     p.add_argument("--out-dir", type=Path, default=None)
     p.add_argument("--seed", type=int, default=42)
     return p.parse_args()
@@ -225,7 +247,7 @@ def build_veer_panel(dump: dict, burn_in: int, min_theme_obs: int,
 
 # ======================= Stage 2: targets ===================================
 def _load_link() -> pd.DataFrame:
-    link = pd.read_csv(EVENT_DIR / "link_table.csv", dtype={"gvkey": str})
+    link = pd.read_csv(_ep("link_table.csv"), dtype={"gvkey": str})
     link["linkdt"] = pd.to_datetime(link["linkdt"])
     link["linkenddt"] = pd.to_datetime(link["linkenddt"], errors="coerce")
     link["linkenddt"] = link["linkenddt"].fillna(pd.Timestamp("2100-01-01"))
@@ -246,7 +268,7 @@ def _lookup_permno(link: pd.DataFrame, gv: str, dt: pd.Timestamp):
 
 def _daily_frames() -> dict[int, pd.DataFrame]:
     """Per-permno daily frame with E ($M), sigma_E (ann.), mu (12m), iv30."""
-    rets = pd.read_csv(EVENT_DIR / "daily_returns.csv",
+    rets = pd.read_csv(_ep("daily_returns.csv"),
                        usecols=["permno", "date", "ret", "prc", "shrout"])
     rets["date"] = pd.to_datetime(rets["date"])
     rets = rets.dropna(subset=["ret"])
@@ -254,7 +276,7 @@ def _daily_frames() -> dict[int, pd.DataFrame]:
     rets = rets.sort_values(["permno", "date"])
     rets["E"] = rets["prc"].abs() * rets["shrout"] / 1000.0   # $ millions
 
-    iv = pd.read_csv(EVENT_DIR / "optionmetrics_iv.csv",
+    iv = pd.read_csv(_ep("optionmetrics_iv.csv"),
                      usecols=["permno", "date", "iv_30d"])
     iv["date"] = pd.to_datetime(iv["date"])
     iv["permno"] = iv["permno"].astype(int)
@@ -312,7 +334,7 @@ def build_targets(panel_quarters: pd.DataFrame, fundamentals: Path,
 
     link = _load_link()
     daily = _daily_frames()
-    market = pd.read_csv(EVENT_DIR / "daily_market.csv", usecols=["date"])
+    market = pd.read_csv(_ep("daily_market.csv"), usecols=["date"])
     calendar = pd.DatetimeIndex(
         sorted(pd.to_datetime(market["date"]).unique()))
 
@@ -466,30 +488,34 @@ def _enet_increment(df: pd.DataFrame, ycol: str, controls: list[str],
     preds_c, preds_cv, actual, base = [], [], [], []
     sel_count = {v: 0 for v in veers}
     n_folds = 0
+    # Common-frame alignment (fixed 2026-07-07): both models are fit and
+    # scored on the SAME rows — those with target, controls AND veers all
+    # non-null. The previous per-model dropna produced different test rows
+    # for the two models whenever the panel was sparse (any missing veer),
+    # which skipped every fold at 499 firms (harmless at 50 mega-caps where
+    # the subsets coincided).
+    all_cols = controls + veers
+    common = df[["quarter", ycol] + all_cols].dropna()
     for ti in range(start, len(quarters)):
-        tr = df[df["quarter"].isin(quarters[:ti])]
-        te = df[df["quarter"] == quarters[ti]]
+        tr = common[common["quarter"].isin(quarters[:ti])]
+        te = common[common["quarter"] == quarters[ti]]
+        if len(tr) < 60 or len(te) < 5:
+            continue
 
         def fit_predict(cols):
-            trg = tr[[ycol] + cols].dropna()
-            teg = te[[ycol] + cols].dropna()
-            if len(trg) < 60 or len(teg) < 5:
-                return None
-            Xtr = trg[cols].to_numpy(dtype=float)
-            Xte = teg[cols].to_numpy(dtype=float)
+            Xtr = tr[cols].to_numpy(dtype=float)
+            Xte = te[cols].to_numpy(dtype=float)
             m, s = Xtr.mean(0), Xtr.std(0)
             s[s <= 0] = 1.0
             en = ElasticNetCV(l1_ratio=[0.5, 0.9], n_alphas=30, cv=3,
                               max_iter=5000, random_state=seed)
-            en.fit((Xtr - m) / s, trg[ycol].to_numpy(dtype=float))
+            en.fit((Xtr - m) / s, tr[ycol].to_numpy(dtype=float))
             return (en, en.predict((Xte - m) / s),
-                    teg[ycol].to_numpy(dtype=float),
-                    float(trg[ycol].mean()))
+                    te[ycol].to_numpy(dtype=float),
+                    float(tr[ycol].mean()))
 
         rc = fit_predict(controls)
-        rcv = fit_predict(controls + veers)
-        if rc is None or rcv is None or len(rc[2]) != len(rcv[2]):
-            continue
+        rcv = fit_predict(all_cols)
         preds_c.append(rc[1])
         preds_cv.append(rcv[1])
         actual.append(rc[2])
@@ -513,6 +539,32 @@ def _enet_increment(df: pd.DataFrame, ycol: str, controls: list[str],
 
 
 # ======================= Stage 4: error clustering ==========================
+def _masked_corr(prof: np.ndarray, min_overlap: int) -> np.ndarray:
+    """Vectorized pairwise Pearson corr over rows with NaN handling.
+
+    Uses the masked cross-moment identity: with Z = nan->0 and M = finite mask,
+    n_ij = M M', s_ij = Z Z', and row sums/sumsq restricted to the overlap are
+    matrix products too, so corr needs only a handful of (N x N) GEMMs. The
+    per-pair overlap means differ slightly from pairwise-deletion Pearson only
+    in that means are overlap-specific — identical to the loop version.
+    """
+    M = np.isfinite(prof).astype(np.float64)
+    Z = np.nan_to_num(prof, nan=0.0)
+    n = M @ M.T
+    s_xy = Z @ Z.T
+    s_x = Z @ M.T          # sum of x over overlap(i,j)
+    s_y = M @ Z.T          # sum of y over overlap(i,j)
+    s_xx = (Z * Z) @ M.T
+    s_yy = M @ (Z * Z).T
+    with np.errstate(all="ignore"):
+        cov = s_xy - s_x * s_y / n
+        vx = s_xx - s_x ** 2 / n
+        vy = s_yy - s_y ** 2 / n
+        corr = cov / np.sqrt(vx * vy)
+    corr[(n < min_overlap) | ~np.isfinite(corr)] = np.nan
+    return corr
+
+
 def error_clustering(z: np.ndarray, quarters: list[str], gvkeys: list[str],
                      feats: list[str], burn_in: int) -> dict:
     """Cluster firms by error profile; compare to GICS; common-factor gauge."""
@@ -524,15 +576,7 @@ def error_clustering(z: np.ndarray, quarters: list[str], gvkeys: list[str],
     Wq, N, K = zu.shape
     prof = zu.transpose(1, 0, 2).reshape(N, Wq * K)   # firm x (quarter*feat)
 
-    # pairwise correlation with min overlap
-    corr = np.full((N, N), np.nan)
-    for i in range(N):
-        for j in range(i, N):
-            ok = np.isfinite(prof[i]) & np.isfinite(prof[j])
-            if ok.sum() >= 20:
-                a, b = prof[i, ok], prof[j, ok]
-                if a.std() > 0 and b.std() > 0:
-                    corr[i, j] = corr[j, i] = float(np.corrcoef(a, b)[0, 1])
+    corr = _masked_corr(prof, min_overlap=20)
     np.fill_diagonal(corr, 1.0)
     corr_f = np.where(np.isfinite(corr), corr, 0.0)
 
@@ -556,14 +600,8 @@ def error_clustering(z: np.ndarray, quarters: list[str], gvkeys: list[str],
     for t, fl in THEMES.items():
         idx = [feats.index(f) for f in fl if f in feats]
         proft = zu[:, :, idx].transpose(1, 0, 2).reshape(N, Wq * len(idx))
-        ct = np.zeros((N, N))
-        for i in range(N):
-            for j in range(i, N):
-                ok = np.isfinite(proft[i]) & np.isfinite(proft[j])
-                if ok.sum() >= 8:
-                    a, b = proft[i, ok], proft[j, ok]
-                    if a.std() > 0 and b.std() > 0:
-                        ct[i, j] = ct[j, i] = float(np.corrcoef(a, b)[0, 1])
+        ct = _masked_corr(proft, min_overlap=8)
+        ct = np.where(np.isfinite(ct), ct, 0.0)
         np.fill_diagonal(ct, 1.0)
         e = np.linalg.eigvalsh(ct)
         out[f"top_pc_share_{t}"] = float(e[-1] / np.sum(np.abs(e)))
@@ -590,8 +628,9 @@ def run_cell(holdout_dir: Path, objective: str, L: int, args,
             args.fundamentals, gvkeys)
     df = panel.merge(targets_cache[key], on=["gvkey", "quarter"], how="left")
 
+    tag = f"_{args.tag}" if args.tag else ""
     out_dir = args.out_dir or holdout_dir
-    df.to_csv(out_dir / f"veer_panel_{objective}_L{L}.csv", index=False)
+    df.to_csv(out_dir / f"veer_panel_{objective}_L{L}{tag}.csv", index=False)
 
     theme_sigs = [f"veer_{t}" for t in THEMES]
     drift_sigs = [f"drift_{t}" for t in THEMES]
@@ -606,6 +645,7 @@ def run_cell(holdout_dir: Path, objective: str, L: int, args,
         n = int(df[tgt].notna().sum()) if tgt in df.columns else 0
         lines.append(f"  {tgt:8s}: {n} scored events")
     lines.append("")
+    hdr_end = len(lines)
 
     # ---- routing grid: FM with controls (primary) + partial rank-IC ----
     grid = []
@@ -634,7 +674,22 @@ def run_cell(holdout_dir: Path, objective: str, L: int, args,
         grid["q_bh"] = _step_q(p, "bh")
         grid["q_by"] = _step_q(p, "by")
         grid["q_holm"] = _step_q(p, "holm")
-    grid.to_csv(out_dir / f"veer_grid_{objective}_L{L}.csv", index=False)
+    grid.to_csv(out_dir / f"veer_grid_{objective}_L{L}{tag}.csv", index=False)
+
+    # ---- PRE-REGISTERED HEADLINE (H1; H2 filled after the elastic net) ----
+    headline = []
+    h1 = grid[(grid["signal"] == "drift_cashflow") &
+              (grid["target"] == "d_dd")] if not grid.empty else pd.DataFrame()
+    if not h1.empty:
+        r = h1.iloc[0]
+        ok = (r.get("fm_t", np.nan) > 0) and (r.get("fm_p", 1.0) < 0.05)
+        headline.append(
+            f"  H1 drift_cashflow -> d_dd : FM slope={r.get('fm_slope', np.nan):+.4f}"
+            f" t={r.get('fm_t', np.nan):+.2f} p={r.get('fm_p', np.nan):.4f}"
+            f" | partial-IC t={r.get('pic_t', np.nan):+.2f}"
+            f" -> {'CONFIRMED' if ok else 'NOT confirmed'} (one-sided +, p<0.05)")
+    else:
+        headline.append("  H1 drift_cashflow -> d_dd : NOT COMPUTABLE")
 
     lines.append("ROUTING GRID — FM slope WITH per-channel controls "
                  "(primary), partial rank-IC")
@@ -691,6 +746,17 @@ def run_cell(holdout_dir: Path, objective: str, L: int, args,
         controls = [c for c in (lvl, pre) if c in df.columns]
         res = _enet_increment(df, tgt, controls, all_sigs,
                               args.enet_start, args.seed)
+        if tgt == "d_iv":
+            if res:
+                ok = res["dR2"] > 0
+                headline.append(
+                    f"  H2 veers -> d_iv (EN)     : dR2={res['dR2']:+.4f} "
+                    f"(ctrl {res['r2_controls']:+.4f} -> "
+                    f"+veers {res['r2_controls_veers']:+.4f}, "
+                    f"n={res['n_pred']}) -> "
+                    f"{'CONFIRMED' if ok else 'NOT confirmed'} (dR2>0)")
+            else:
+                headline.append("  H2 veers -> d_iv (EN)     : NOT COMPUTABLE")
         if not res:
             lines.append(f"  {tgt:8s}: insufficient data")
             continue
@@ -719,15 +785,21 @@ def run_cell(holdout_dir: Path, objective: str, L: int, args,
                            for t in THEMES))
     lines.append("")
 
+    hl_block = ["★ PRE-REGISTERED HEADLINE (log 2026-07-06 evening; all else "
+                "exploratory)", "-" * 70] + headline + [""]
+    lines = lines[:hdr_end] + hl_block + lines[hdr_end:]
+
     report = "\n".join(lines) + "\n"
-    rpt = out_dir / f"veer_report_{objective}_L{L}.txt"
+    rpt = out_dir / f"veer_report_{objective}_L{L}{tag}.txt"
     rpt.write_text(report)
     print(f"[{objective} L{L}] wrote {rpt.name}")
     return report
 
 
 def main() -> None:
+    global _EVENT_DIR
     args = parse_args()
+    _EVENT_DIR = Path(args.event_dir)
     holdout_dir = args.holdout_dir.resolve()
     if args.out_dir:
         args.out_dir.mkdir(parents=True, exist_ok=True)

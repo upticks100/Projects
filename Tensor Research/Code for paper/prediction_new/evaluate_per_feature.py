@@ -146,11 +146,23 @@ def refit_and_predict(trial: dict, X_cv, Y_cv, M_cv, X_test, Y_test):
         y_rms = 1.0
         Y_target = Y_scaled
 
-    cp = CPRegressor(
+    # PRED_CP_LOWMEM=1: sample-blocked normal equations (identical math,
+    # verified bit-equal by test_cp_lowmem_equiv.py). Needed at 498 firms
+    # where stock CPRegressor's design matrix (~65 GB at rank 13) OOMs the
+    # 62 GB lab hosts.
+    if os.environ.get("PRED_CP_LOWMEM") == "1":
+        from cp_regressor_lowmem import LowMemCPRegressor
+        cp_cls, cp_extra = LowMemCPRegressor, {
+            "block_size": int(os.environ.get("PRED_CP_LOWMEM_BLOCK", "4")),
+        }
+    else:
+        cp_cls, cp_extra = CPRegressor, {}
+    cp = cp_cls(
         weight_rank=int(trial["RANK_REGRESS"]),
         reg_W=float(trial["REG_W"]),
         n_iter_max=N_ITER_MAX,
         random_state=SEED,
+        **cp_extra,
     )
     cp.fit(X_fit, Y_target)
     cp_residual_test = cp.predict(X_test_in) * y_rms * feat_scale[None, None, :]

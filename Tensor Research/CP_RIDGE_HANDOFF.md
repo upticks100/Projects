@@ -1,12 +1,58 @@
 # CP vs Fixed-Effects Ridge Prediction Handoff
 
-Date: 2026-04-30 (initial), 2026-06-29 (latest addenda)
+Date: 2026-04-30 (initial), 2026-07-06 (latest addendum)
 Project root: `/student/mcnama53/Projects/Tensor Research`
 Primary log: `RESEARCH_LOG.md`
 Current prediction code: `Code for paper/prediction_new/`
 Stale paper narrative: `Paper_Draft/main.tex`
 
-## 2026-06-29 Addendum (Latest) — Part 2 (event study) pipeline: Codex audit fixes applied
+## 2026-07-06 SUPERSEDING ADDENDUM (READ THIS FIRST — everything below is historical)
+
+**The section titled "CURRENT EXECUTION PLAN (Authoritative)" further down is the
+APRIL state and is NO LONGER AUTHORITATIVE** (external audit Finding 5). It is kept
+for provenance only. The project state as of 2026-07-06:
+
+1. **Part 1 is final and forward-validated.** CP/booster beats an alpha-tuned Ridge
+   on OOS next-quarter fundamentals across all 4 locked cells (ridge_delta_v3 /
+   residual_delta_v3 × L2/L4). The 21-quarter calendar-fixed extension added five
+   truly out-of-sample quarters (2025Q1–2026Q1) — ensemble delta positive in all
+   4 cells on them. Stationarity gradient confirmed in every cell.
+2. **Part 2 (event study) is final: an honest, heavily-fortified null + one real
+   but subsumed signal.** Event-return alpha: 0 headline survivors at BY<0.1 in
+   all 4 cells (cell-invariant null). Vol signal (|cp_increment| forecasts
+   post-event vol beyond lagged realized vol): strong in ridge cells (75/80,
+   69/80), weak in residual cells → per-architecture claim. Option-implied vol
+   subsumes it everywhere (ivctrl survivors 0/29/13/9 of 80; the ridge-L4 29 does
+   not replicate) → "beats lagged vol, subsumed by IV"; no straddle alpha (VRP
+   mechanics only). OptionMetrics ATM 30d IV is wired into the builder (pre_iv).
+3. **Veer anomaly first look (50 firms) done** (`veer_anomaly_experiment.py`):
+   drift_cashflow→ΔDD replicates in all 4 cells (FM + partial-IC); veers add OOS
+   ΔR²≈+0.03 for ΔIV in all cells; veer_earnings→ΔP/E is a mechanical denominator
+   artifact (do not headline); error-clustering null at 50 names.
+4. **MFI/FCIX caveat (audit Finding 1):** the paper's macro exhibits were built
+   from the polluted April v1 tensor (39 feats, 12 structurally empty). Result is
+   PROVISIONAL pending the v2/40 rebuild (in flight, `rebuild_mfi_tensor_v2.py`).
+   The 2026-06-30 log note claiming "FEATURE_SPECS is 39 now" is WRONG (corrected
+   in log; live spec = 40).
+5. **Backup executed 2026-07-06:** logs, handoff, prediction_new code, all Optuna
+   journals, result summaries pushed to github.com/upticks100/Projects (licensed
+   caches untracked; auth via passphrase-less ~/.ssh/id_ed25519_github).
+6. **499-firm scale-up: DONE (2026-07-07, log entry "2026-07-07")**. Transfer
+   check PASS 4/4 (CP delta positive at 498 firms; residual-cell edge ~2.5x
+   smaller than at 50). Pre-registered verdicts: H1 drift_cashflow→ΔDD slope
+   ≈+0.020 in all 4 cells, confirmed p<0.05 in both residual cells; H2
+   veers→ΔIV formally positive 3/4 but ΔR²≈+0.003 — economically negligible,
+   folded into the IV-subsumption narrative. Error clustering null at 499.
+   New exploratory credit candidates: veer_leverage→ΔDD (ridge cells),
+   veer_investment→ΔDD (residual cells). NOTE: refits used the exact-math
+   low-memory CP fitter (`cp_regressor_lowmem.py`, validated equivalent;
+   stock OOMs at 498 firms) — and CP-ALS predictions were found to be
+   fp-chaotic across BLAS thread counts (~±0.003 R² fitter noise; deltas
+   unaffected). Results: `prediction_new/results/v3_holdout_499_20260706/`.
+
+Master ranked idea list + anomaly catalog: top of `RESEARCH_LOG.md`.
+
+## 2026-06-29 Addendum — Part 2 (event study) pipeline: Codex audit fixes applied
 
 The Part 2 economic-exercise pipeline was audited (Codex) before being
 run. Six concrete issues were identified; all six are now patched in
