@@ -67,8 +67,51 @@ CDS spread and test this."
                 --fundamentals ...HY.csv), CDS by REDCODE via curated link
                 (fetch_cds_hy.py) — no re-matching at pull time
   refits        4 locked cells, lab hosts, detached; run_hy_scaleup.sh
-  results       prediction_new/results/v3_holdout_hy_<date>/
-Results entry to follow after the gate.
+  results       prediction_new/results/v3_holdout_hy_20260707/
+
+### ★★ RESULTS (same night, 19:24 — whole pipeline ran in ~5 min at 113 firms)
+
+**Gate: PASS 3/4** (ridge L2 +.0055, ridge L4 +.0047, resid L2 +.0037;
+resid L4 −.0228 NEGATIVE — first cell anywhere where the CP delta collapses;
+gate needs >=1, so the pre-registered test ran. Note the asymmetry: deltas
+are ~4x smaller at HY than at 499 — CP structure weakens as fundamentals get
+noisier, consistent with the mega-cap-tilt gradient).
+
+**H-HY drift_cashflow -> d_logcds: CONFIRMED 4/4** (pre-registered bar was
+>=2/4 at one-sided p<0.05; reported p's are two-sided, sign negative as
+declared, so one-sided = p/2):
+  ridge L2:  slope −0.0113 t=−2.21 (1s p=.024)  −2.24%/1sd = −6.3 bp @282
+  ridge L4:  slope −0.0151 t=−2.74 (1s p=.009)  −2.41%/1sd = −6.8 bp @282
+  resid L2:  slope −0.0112 t=−2.34 (1s p=.019)  −2.43%/1sd = −6.9 bp @282
+  resid L4:  slope −0.0104 t=−1.96 (1s p=.037)  −2.26%/1sd = −6.4 bp @282
+Partial rank-IC negative 4/4 (t −1.65..−2.16). n=900 events, 90 CDS-covered
+firms, 13 FM quarters per cell.
+
+**HEADLINE (the tradeable sentence)**: in crossover/HY names (median 5Y CDS
+282 bp), a +1sd cash-flow drift vs the tensor forecast predicts ~2.3% spread
+TIGHTENING (~6.5 bp) over the next quarter, controlling for spread level and
+pre-trend — the same signal that moved only model-implied DD in the IG 499
+universe now moves the traded market price. Completes the efficiency
+gradient story: mega-cap IG = fully priced (returns, IV, CDS all null);
+HY/crossover = prices with a lag.
+
+**Cross-checks / honesty**:
+- d_dd at HY: directionally + (slope +.086..+.118) but NS (t 1.3-1.4) —
+  naive-Merton DD is noisy for levered high-vol firms; the market price is
+  now the sharper instrument. No contradiction.
+- Exploratory: veers->d_iv EN dR2 > 0 in 3/4 cells at HY (+.002..+.0035,
+  n=527) — IV subsumption may LOOSEN outside mega-caps too. Not a claim;
+  candidate for next pre-registration.
+- Caveats: 90 firms x 13 quarters (small); 4 cells are correlated (but all
+  pass individually); survivorship gate excludes 15 dead names (biases
+  AGAINST us); rough magnitude sanity: ~6.5bp/quarter per 1sd on a 282bp
+  name is economically plausible, not suspicious.
+- resid L4 cell: its CP delta was negative at the gate, yet its veer panel
+  still delivers the CDS slope — signal survives even where the ensemble R2
+  edge collapsed; worth understanding (the veer signal uses ensemble
+  ERRORS, not the delta).
+Artifacts: results/v3_holdout_hy_20260707/{cds_h1_translation_hy.csv,
+transfer_check_499.csv, veer_*_hy.*}, logs/scaleup_hy/.
 
 ---
 
