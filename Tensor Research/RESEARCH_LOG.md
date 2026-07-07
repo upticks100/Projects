@@ -10,6 +10,94 @@ distilled version that's actually worth reading later.
 
 ---
 
+## 2026-07-07 — H1 ECONOMIC MAGNITUDE: PD translation DONE + CDS extension PRE-REGISTERED
+
+Question (user): what does the H1 slope (+0.020 DD per unit drift_cashflow)
+mean in spread / default-probability terms? Two layers.
+
+### Layer 1 — model-implied PD translation (no new data) — DONE
+Naive Merton maps DD → physical PD via PD = N(−DD). Per 1-sd move in
+drift_cashflow (panel sd 2.76–3.33 across cells), ΔDD = slope × sd =
++0.054..+0.067. Evaluated at the 499-panel dd_pre distribution
+(p25/med/p75 = 6.04 / 8.71 / 11.99), the RELATIVE PD change per +1sd signal:
+  p25 (DD 6.0):  −29% .. −34%
+  med (DD 8.7):  −38% .. −45%
+  p75 (DD 12.0): −48% .. −56%
+Absolute PDs are astronomically small for these large caps (1e−10..1e−33), so
+the honest paper framing is the relative hazard change (for large DD,
+dlogPD/dDD ≈ −DD, hence the growing relative effect). Caveat for the draft:
+naive-Merton PD is a physical-measure model quantity; market spreads embed
+risk premia — hence Layer 2.
+
+### Layer 2 — PRE-REGISTERED CDS extension (before touching the data)
+WRDS has Markit single-name CDS: markit_cds.cds2001..cds2026 (parspread by
+date × redcode × tenor × tier × docclause). Naive ticker match vs our 556
+permnos: ~221 US 5Y USD SNRFOR reference entities (2018 sample year) — real
+cross-sectional power.
+
+Declared BEFORE running (this is a magnitude/robustness extension of the
+already-confirmed H1, on an independent market measurement of the same
+construct — NOT a new headline hypothesis):
+  - Spec: 5Y tenor, USD, tier SNRFOR, docclause XR/XR14 (XR14 preferred when
+    both), country = United States. Daily parspread, 2021-07..2026-07.
+  - Link: CRSP stocknames ticker ↔ Markit ticker, names date-valid in the
+    panel window; ambiguous multi-matches resolved to the redcode with the
+    most spread observations.
+  - Target: d_logcds = log spread(+63td) − log spread(−2td) around the same
+    announcement dates as the veer panels; controls log(spread_pre) and the
+    pre-delta over [−65td, −2td] (exactly parallel to the d_iv construction;
+    trading-day offsets on the CRSP market calendar, spreads ffilled ≤5d).
+  - Test: FM slope of drift_cashflow → d_logcds with controls, all 4 cells.
+  - EXPECTED SIGN: NEGATIVE (cash-flow over-performance → spreads tighten).
+  - Deliverable: bp and % tightening per 1-sd drift_cashflow at the sample
+    median spread.
+Scripts: fetch_cds_markit.py (pull), prediction_new/cds_h1_translation.py
+(target build + FM + translation). Results entry to follow.
+
+### RESULTS (same day, ~30 min after pre-registration)
+
+**Pull**: 206,166 spread-days, 189 gvkeys matched (of 497; ~38% coverage —
+CDS trades on the larger/levered half of the universe). Link audit: 84% exact
+name-prefix agreement; all flagged disagreements are abbreviation artifacts
+("Gen Mls" = General Mills) EXCEPT ticker BR, where Markit's BR is Burlington
+Resources (dead ticker reused by Broadridge) — excluded. Median spread 56 bp
+(investment-grade universe, as expected).
+
+**CDS test (pre-registered sign: negative): CLEAN NULL, 4/4 cells.**
+  FM slope on d_logcds ≈ 0 in every cell (t between −0.08 and +0.14, p>0.88);
+  per +1sd drift_cashflow: ±0.03 bp at the 56 bp median spread. Partial
+  rank-IC has the right sign (−0.014..−0.028) but t ≈ −0.5..−0.9, ns.
+  n=1,961 events, 169 firms, 14 FM quarters per cell.
+
+**Composition check (crucial)**: re-ran the pre-registered d_dd FM on the
+CDS-covered subsample only — slope is INTACT and slightly larger
+(+0.024..+0.026, t +2.05..+2.29 vs +0.020 full panel). So the null is not
+"CDS firms lack the effect"; the same firm-events show DD improving while
+their traded spread does not move.
+
+**Verdict / paper framing.** H1's economic magnitude:
+  (a) In model units: +1sd cash-flow drift → ΔDD ≈ +0.05..+0.07, i.e. a
+      29–56% RELATIVE reduction in naive-Merton PD (Layer 1, artifact
+      h1_pd_translation_499.csv). Sounds big, but
+  (b) absolute PDs for these investment-grade firms are 1e−10..1e−33, and
+  (c) the market price of credit confirms the irrelevance: 5Y CDS does not
+      respond (±0.03 bp per 1sd).
+  This RHYMES with the IV-subsumption result: every TRADED price we test
+  (options IV, now CDS) already embeds what the veer signal knows; only
+  MODEL-IMPLIED quantities (naive DD) respond. Honest paper sentence: "the
+  effect is statistically robust in the model-implied credit metric but
+  economically invisible in traded credit prices for this investment-grade
+  universe." Follow-up idea (NOT pre-registered): decompose d_dd into its
+  equity-value / equity-vol / debt components to locate the channel; and the
+  effect might price in HY/crossover names where PDs are non-trivial — our
+  top-499-by-mktcap universe is the wrong place to see spread moves.
+
+Artifacts: results/v3_holdout_499_20260706/{cds_h1_translation_499.csv,
+h1_pd_translation_499.csv}, pre_prediction_cache/event_study_499/
+{cds_markit.csv.gz, cds_link_audit.csv}.
+
+---
+
 ## 2026-07-07 — ★ 499 SCALE-UP COMPLETE: transfer PASS, H1 partially confirmed, H2 confirmed-but-negligible
 
 Timeline: caches 19:28 → OOM incident + gram fitter (entries below) → all 4
