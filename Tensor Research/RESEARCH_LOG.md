@@ -10,6 +10,61 @@ distilled version that's actually worth reading later.
 
 ---
 
+## 2026-07-07 (final test) — PRE-REGISTERED: options tradeability at HY (H-HY-IV)
+
+Context: HY veer run produced an EXPLORATORY hint that IV subsumption may
+loosen outside mega-caps (veers->d_iv EN dR2 +.002..+.0035 in 3/4 cells,
+n=527). DISCLOSURE: that statistic is peeked — re-testing it would be
+circular. The clean confirmatory question is the Part 2 tradeability battery
+(CP-increment vol signal vs OPTION-IMPLIED benchmark + straddle-proxy LS),
+which has NEVER been run on HY data and was decisively null at mega-caps
+(ivctrl majority survival: 0 cells; straddle LS = mechanical VRP with
+negative/mixed means).
+
+Declared BEFORE running (build_event_study_dataset + analyze_event_study_
+multi on the 4 HY dumps, same 80 feature x vol-target pairs per cell):
+  (a) PRIMARY (tradeable straddle alpha): cell passes iff >=16/80 pairs
+      have ivsurp_ls_mean > 0 AND ivsurp_ls_boot_p < 0.05, AND the
+      equal-weight mean of ivsurp_ls_mean over all 80 pairs is positive.
+      CONFIRMED iff >=2/4 cells pass.
+  (b) SECONDARY (incremental vol info): cell passes iff ivctrl_t >= +2 in
+      >=41/80 pairs (majority). Supporting evidence iff >=2/4 cells pass.
+Interpretation declared now: (a)+(b) pass = second tradeable leg (options);
+only (b) = informative-not-tradeable; both fail = the IV hint was noise and
+the mega-cap subsumption verdict extends to HY. This is the LAST planned
+empirical test before write-up.
+Results below the HY scale-up entry.
+
+### RESULTS (same night, 19:40; run_part2_hy.sh, reports in holdout_hy dir)
+
+  cell        (a) pos+sig LS pairs / meanLS      (b) ivctrl |t|>=2
+  ridge L2     4/80  +0.00025  FAIL               0/80  FAIL
+  ridge L4    34/80  +0.00137  PASS               0/80  FAIL
+  resid L2     6/80  +0.00021  FAIL              18/80  FAIL
+  resid L4    18/80  +0.00093  PASS              12/80  FAIL
+
+**(a) PRIMARY: formally CONFIRMED at the declared bar (2/4 cells)** — but
+the pattern is L4-ONLY: both L4 cells pass (and comfortably), both L2 cells
+fail badly. Equal-weight mean LS is positive in all 4 cells (contrast
+mega-caps: negative/uniform means = short-VRP mechanics). So at HY, buying
+the straddle proxy on high-|CP-increment| names vs the implied benchmark
+made money in the longer-lookback architecture.
+**(b) SECONDARY: FAILED 0/4** (majority bar 41/80; best is resid L2 at
+18/80 — notably nonzero vs literally 0/80 for ridge at HY AND at mega-caps,
+same architecture split as the June ridge-L4 nuance).
+
+**Verdict (honest): PARTIAL / FRAGILE.** The combination "(a) without (b)"
+was not among the declared interpretations, so we do NOT claim the second
+tradeable leg outright. Reading: LS-sort profits exist (L4 cells) but
+per-pair incremental-to-IV significance is thin — consistent with a lumpy,
+sort-level edge rather than a uniform per-feature signal. Paper treatment:
+report as pre-registered-primary-met-at-bar, architecture-dependent,
+secondary failed; one paragraph, clearly subordinate to the CDS result
+(which passed 4/4 with sign, magnitude, and mechanism aligned). NOT a
+headline. No further empirical tests planned — write-up is next.
+
+---
+
 ## 2026-07-07 (late) — ★ HY/CROSSOVER SCALE-UP: universe built + PRE-REGISTRATION
 
 Motivation chain (entries below, same day): H1 confirmed on d_dd; CDS null in
