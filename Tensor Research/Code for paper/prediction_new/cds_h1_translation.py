@@ -50,18 +50,23 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("holdout_dir", type=Path)
     p.add_argument("--tag", default="499")
     p.add_argument("--min-q-firms", type=int, default=10)
+    p.add_argument("--event-dir", type=Path, default=EVENT_DIR,
+                   help="event-data dir with daily_market.csv + CDS file")
+    p.add_argument("--cds-file", default="cds_markit.csv.gz",
+                   help="CDS csv(.gz) filename inside --event-dir")
     return p.parse_args()
 
 
-def load_cds_on_calendar() -> tuple[dict[str, pd.DataFrame], np.ndarray]:
+def load_cds_on_calendar(event_dir: Path = EVENT_DIR,
+                         cds_file: str = "cds_markit.csv.gz",
+                         ) -> tuple[dict[str, pd.DataFrame], np.ndarray]:
     """Per-gvkey log-spread series reindexed to the CRSP trading calendar."""
-    market = pd.read_csv(EVENT_DIR / "daily_market.csv", usecols=["date"])
+    market = pd.read_csv(event_dir / "daily_market.csv", usecols=["date"])
     calendar = pd.DatetimeIndex(sorted(pd.to_datetime(market["date"]).unique()))
 
-    cds = pd.read_csv(EVENT_DIR / "cds_markit.csv.gz",
-                      usecols=["gvkey", "ticker", "date", "parspread"],
-                      dtype={"gvkey": str})
-    cds = cds[~cds["ticker"].isin(BAD_TICKERS)]
+    cds = pd.read_csv(event_dir / cds_file, dtype={"gvkey": str})
+    if "ticker" in cds.columns:   # 499 pull was ticker-matched at pull time
+        cds = cds[~cds["ticker"].isin(BAD_TICKERS)]
     cds["date"] = pd.to_datetime(cds["date"])
 
     frames = {}
@@ -105,7 +110,7 @@ def build_cds_targets(panel: pd.DataFrame, logcds: dict[str, np.ndarray],
 
 def main() -> int:
     args = parse_args()
-    logcds, cal = load_cds_on_calendar()
+    logcds, cal = load_cds_on_calendar(args.event_dir, args.cds_file)
     print(f"CDS series for {len(logcds)} gvkeys on {len(cal)}-day calendar\n")
 
     controls = ["logcds_pre", "d_logcds_pre"]

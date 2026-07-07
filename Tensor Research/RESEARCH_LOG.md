@@ -10,6 +10,68 @@ distilled version that's actually worth reading later.
 
 ---
 
+## 2026-07-07 (late) — ★ HY/CROSSOVER SCALE-UP: universe built + PRE-REGISTRATION
+
+Motivation chain (entries below, same day): H1 confirmed on d_dd; CDS null in
+the IG 499 universe; d_dd effect CONCENTRATES in the high-spread tercile
+(4/4 cells). If the credit channel prices anywhere tradeable, it's in names
+where default is near the money. User directive: "pull firms at a material
+CDS spread and test this."
+
+### Universe (built tonight, scripts committed)
+- Start: 970 US 5Y USD SNRFOR reference entities in markit_cds (2021-07..
+  2026-07); 298 with median spread >= 150 bp ("material").
+- Link Markit->CRSP/Compustat: ticker match alone is UNSAFE (BR/Burlington
+  lesson). build_hy_universe.py: normalized-name containment/similarity
+  rules + hand-curated whitelist (49 entries; financing/operating subs map
+  to listed parents: Ford Motor Credit->F, CCO Hldgs->CHTR, MPT Oper LP->MPW)
+  + blacklist (private/dead: Hilcorp, Asurion, Sears, Cablevision...).
+  Result: 128 gvkeys/redcodes accepted (audit file for all 153 rejects).
+- Fundamentals: comp.fundq 1990-01-01..2026-07-06 for the 128 gvkeys ->
+  90-26_Q_Fundamentals_v2_HY.csv (15,097 rows, YTD densities all OK).
+- Universe gate (locked pipeline convention, mkvaltq @2024Q4): 113 firms
+  survive. The 15 drops are bankruptcies/acquisitions (Rite Aid, Yellow,
+  DISH DBS, Tenneco, Nuance...). KNOWN LIMITATION, unchanged from 50/499
+  convention: universe conditions on being alive at 2024Q4 -> the very
+  blow-ups where the signal would be strongest are excluded. Accept for
+  design consistency; flag in paper.
+- Spread distribution of accepted: p25 200 / median 289 / p75 440 bp
+  (vs 56 bp median in the 499 IG sample) — genuine crossover/HY.
+
+### PRE-REGISTERED (declared BEFORE any HY model run or test)
+  H-HY: drift_cashflow -> d_logcds, FM slope with controls
+        (logcds_pre, d_logcds_pre), EXPECTED SIGN NEGATIVE, evaluated in
+        all 4 cells on the HY universe. Same target construction as the
+        499 CDS test (+63td vs -2td, pre-delta control window -65td..-2td,
+        5-day ffill limit, CRSP trading calendar). Deliverable: bp and %
+        tightening per 1-sd drift_cashflow at the sample median spread.
+  Success criterion: negative slope with one-sided p<0.05 in >=2 of 4
+        cells (mirrors H1's bar). Partial rank-IC reported as support.
+  GATE (same semantics as 499): locked hyperparameters from the 50-firm
+        tuning; transfer check must show CP ensemble delta > 0 in >=1 of 4
+        cells, else the pre-registered test does NOT run and the collapse
+        is itself the finding ("CP structure does not extend to HY
+        fundamentals").
+  Everything else (other veer themes, other targets, d_dd replication at
+        HY, tercile splits) is EXPLORATORY.
+  Caveats declared now: n~113 firms and ~14 usable FM quarters -> power is
+        limited; announcement dates rdq have HY-specific noise; CDS
+        liquidity filter = docclause XR14/XR dedup only.
+
+### Pipeline (identical machinery to 499 run, new dirs; nothing overwritten)
+  fundamentals  90-26_Q_Fundamentals_v2_HY.csv
+  env           PRED_FUNDAMENTALS_FILE=...HY.csv PRED_END_DATE=2026-06-30
+                PRED_CACHE_DIR=tensor_cache_hy PRED_UNIVERSE_TOP_N=128
+                PRED_CP_LOWMEM=1 (Gram fitter, adopted 2026-07-06)
+  events        pre_prediction_cache/event_study_hy/ (fetch_universe_499.py
+                --fundamentals ...HY.csv), CDS by REDCODE via curated link
+                (fetch_cds_hy.py) — no re-matching at pull time
+  refits        4 locked cells, lab hosts, detached; run_hy_scaleup.sh
+  results       prediction_new/results/v3_holdout_hy_<date>/
+Results entry to follow after the gate.
+
+---
+
 ## 2026-07-07 — H1 ECONOMIC MAGNITUDE: PD translation DONE + CDS extension PRE-REGISTERED
 
 Question (user): what does the H1 slope (+0.020 DD per unit drift_cashflow)
