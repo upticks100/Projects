@@ -228,7 +228,7 @@
 %%==================================%%
 
 \abstract{
-We introduce the Market Fundamentals Index (MFI), a novel metric constructed from a tensor representation of firm-level accounting data and smoothed via Tucker decomposition. The MFI captures time-varying dispersion in market fundamentals, and we demonstrate its strong statistical dependence on a price-based financial chaos index (FCIX). Building on this tensor framework, we develop a predictive pipeline that imputes missing fundamentals through mask-aware Tucker decomposition and forecasts the full next-quarter panel via low-rank CANDECOMP/PARAFAC regression deployed as a booster over fixed-effects and per-feature ridge baselines. On a calendar-fixed out-of-time holdout the tensor improves on a fully tuned ridge benchmark, its gains concentrating on non-stationary line items, and the improvement survives a locked-hyperparameter transfer to the full 499-firm cross-section. A sequence of pre-registered event studies then traces where markets price this information: in mega-cap investment-grade names, announcement returns, option-implied volatility, and CDS spreads all subsume the tensor's signals, while in a dedicated high-yield/crossover universe, persistent cash-flow over-performance against the tensor forecast predicts economically meaningful CDS spread tightening (approximately 6.5 basis points per standard deviation per quarter) in all four model configurations---an efficiency gradient in which fundamental information prices with a lag only where default risk is material.
+We introduce the Market Fundamentals Index (MFI), a novel metric constructed from a tensor representation of firm-level accounting data and smoothed via Tucker decomposition. The MFI captures time-varying dispersion in market fundamentals, and we demonstrate its strong statistical dependence on a price-based financial chaos index (FCIX). Building on this tensor framework, we develop a predictive pipeline that imputes missing fundamentals through mask-aware Tucker decomposition and forecasts the full next-quarter panel via low-rank CANDECOMP/PARAFAC regression deployed as a booster over fixed-effects and per-feature ridge baselines. On a calendar-fixed out-of-time holdout the tensor improves on a fully tuned ridge benchmark, its gains concentrating on non-stationary line items, and the improvement survives a locked-hyperparameter transfer to the full 499-firm selection universe. A sequence of hypotheses specified ex ante then traces where markets price this information: in mega-cap investment-grade names, announcement returns, option-implied volatility, and CDS spreads all subsume the tensor's signals, while in a dedicated high-yield/crossover universe, persistent cash-flow over-performance against the tensor forecast predicts economically meaningful CDS spread tightening (approximately 6.5 basis points per standard deviation per quarter) in all four model configurations---evidence consistent with slower incorporation of this information where default risk is material.
 }
 
 
@@ -352,7 +352,24 @@ An additional challenge lies in the representation of temporal information. The 
 
 For each candidate subset $\mathit{F}' \subset \mathit{F}$, the design matrix $\mathbf{D}$ is constructed and subjected to affinity propagation clustering. The resulting number of clusters is then compared to $\mathcal{G} = 158$. The subset $\mathit{F}^\star$ is selected according to the best-match criterion. While dimensionality reduction methods such as PCA, Lasso, or autoencoders could be considered, we intentionally avoid these to preserve economic interpretability of the features. Moreover, robustness checks revealed that $\mathit{F}^\star$ remained stable across perturbed data subsets, indicating selection consistency.
 
-In total, over 600 distinct quarterly and annual features were considered. Through extensive search and evaluation, a 40-feature subset $\mathit{F}^\star$ was identified, as detailed in Table~\ref{Fundamentals}. The affinity propagation algorithm applied to $\mathbf{D}$ constructed from $\mathit{F}^\star$ yielded 156 clusters, just two fewer than the GICS-defined sub-industry count. This near match supports the claim that $\mathit{F}^\star$ provides a structurally faithful representation of economic heterogeneity across the market.
+In total, over 600 distinct quarterly and annual features were considered. Through extensive search and evaluation, a 40-feature subset $\mathit{F}^\star$ was identified, as detailed in Table~\ref{Fundamentals}. The affinity propagation algorithm applied to $\mathbf{D}$ constructed from $\mathit{F}^\star$ yielded 156 clusters, just two fewer than the GICS-defined sub-industry count. This near match supports the claim that $\mathit{F}^\star$ provides a structurally faithful representation of economic heterogeneity across the market. As a supplementary check, Table~\ref{Tab:Affinity_GICS_Metrics} reports direct partition-similarity metrics against GICS levels on the canonical affinity-propagation design matrix; the agreement is positive but imperfect, so we interpret the feature set as structurally aligned rather than as a reconstruction of the taxonomy.
+
+\begin{table}[!htbp]
+	\centering
+	\small
+	\caption{Supplementary alignment metrics between affinity-propagation clusters and GICS labels. ARI denotes adjusted Rand index, NMI normalized mutual information, AMI adjusted mutual information, and purity the share of firms assigned to the modal GICS class within each cluster.}
+	\label{Tab:Affinity_GICS_Metrics}
+	\begin{tabular}{lccccc}
+		\toprule
+		GICS level & Classes & AP clusters & ARI & NMI & Purity \\
+		\midrule
+		Sector & 11 & 27 & 0.135 & 0.349 & 0.474 \\
+		Group & 23 & 27 & 0.182 & 0.438 & 0.388 \\
+		Industry & 55 & 27 & 0.140 & 0.531 & 0.294 \\
+		Sub-industry & 94 & 27 & 0.121 & 0.578 & 0.260 \\
+		\bottomrule
+	\end{tabular}
+\end{table}
 
 \begin{table}
 	\centering
@@ -413,7 +430,16 @@ Let $\mathbfcal{D} \in \mathbb{R}^{N \times |\mathit{F}^\star| \times |\mathcal{
 
 \begin{figure}
 	\centering
-	\includegraphics[scale=0.7]{./Figures/Fundamentals_Tensor}
+	\begin{tikzpicture}[scale=1.0, every node/.style={font=\small}]
+	% Design tensor cube, drawn in the same style as the model figures
+	\draw[thick, fill=white] (0,0,0) -- (3.6,0,0) -- (3.6,2.4,0) -- (0,2.4,0) -- cycle;
+	\draw[thick, fill=gray!20] (3.6,0,0) -- (4.8,0.96,0) -- (4.8,3.36,0) -- (3.6,2.4,0) -- cycle;
+	\draw[thick, fill=gray!10] (0,2.4,0) -- (3.6,2.4,0) -- (4.8,3.36,0) -- (1.2,3.36,0) -- cycle;
+	\node at (1.8,-0.5,0) {$N$ (firms)};
+	\node[rotate=90] at (-0.5,1.2,0) {$|\mathit{F}^\star|$ (features)};
+	\node[anchor=west] at (4.95,1.65,0) {$|\mathcal{T}|$ (quarters)};
+	\node at (2.4,3.8,0) {$\mathbfcal{D}$};
+	\end{tikzpicture}
 	\caption[Schematic of a third-order market fundamentals design tensor.]{Schematic of a third-order market fundamentals design tensor.}
 	\label{Fig:Design_Tensor_Fund}
 \end{figure}
@@ -449,6 +475,8 @@ To preserve economic interpretability, we set $R_1$ equal to the number of obser
 \end{equation}
 
 Rather than minimizing this error to the lowest achievable level, we intentionally select a moderate value of $R_3$ that filters out noise and captures only the most persistent components. Based on our empirical evaluation, we use the multilinear rank vector $[67,40,20]$, which yields an observed-entry relative approximation error of $5.45\%$.
+
+Supplementary stability checks support the construction choice. Using the saved v2 time-factor matrix, replacing the mean-absolute aggregation in Definition~1 with an RMS aggregation gives a highly correlated index ($\rho=0.968$); a single-factor version is less stable ($\rho=0.581$), which supports aggregating across all temporal factors rather than selecting one component. Nearby rank/normalization checks remain close to the baseline MFI (minimum correlation $0.938$, with a no-RMS $[67,20,20]$ variant at $\rho=0.996$). An initialization audit at rank $[67,20,20]$ shows that SVD initialization reaches an observed-entry error near $5.5\%$ across iteration budgets, whereas random starts remain far above this error under the same budgets; accordingly, the reported MFI uses the SVD-initialized Tucker solution.
 
 The temporal factor matrix $\mathbf{T}$ now contains $R_3$ latent time series of length $|\mathcal{T}|$. Each column captures a distinct latent mode of variation in the temporal dimension of the tensor. To aggregate these into a single index, we define the Market Fundamentals Index by taking the average magnitude across the $R_3$ components at each time $t$, whose formal definition is provided below.\newline
 
@@ -528,7 +556,7 @@ As an alternative, we compute a log-likelihood divergence statistic, which measu
 
 Under the null hypothesis of independence, both $L_n$ and $I_n$ converge in distribution, and critical values can be approximated either via permutation or using asymptotic theory.
 
-Table~\ref{Independence_Test} reports the results of both tests applied to $\{\mathrm{FCIX}_t\}_{t=1}^{140}$ and $\{\mathrm{MFI}_t\}_{t=1}^{140}$, using $m_n = m_n' = 6$ equal-frequency discretization bins per dimension. Critical thresholds are obtained from 10,000 random permutations of the paired quarterly series.
+Table~\ref{Independence_Test} reports the results of both tests applied to $\{\mathrm{FCIX}_t\}_{t=1}^{140}$ and $\{\mathrm{MFI}_t\}_{t=1}^{140}$, using $m_n = m_n' = 6$ equal-frequency discretization bins per dimension. Critical thresholds are obtained from 10,000 random permutations of the paired quarterly series. As a serial-dependence check, we also repeat the null simulation using circular block permutations of the MFI series with four- and eight-quarter block lengths.
 
 \begin{table}[ht]
 	\centering
@@ -544,11 +572,15 @@ Table~\ref{Independence_Test} reports the results of both tests applied to $\{\m
 		\quad 1\% level   & 0.459 & 0.174 \\
 		\quad 5\% level   & 0.421 & 0.148 \\
 		\quad 10\% level  & 0.403 & 0.136 \\
+		\addlinespace
+		\textbf{Block-permutation $p$-values} & & \\
+		\quad 4-quarter blocks & 0.003 & 0.006 \\
+		\quad 8-quarter blocks & 0.025 & 0.043 \\
 		\bottomrule
 	\end{tabular}
 \end{table}
 
-Both test statistics exceed their respective critical values at the $1\%$ significance level, leading to the rejection of the null hypothesis $\mathrm{H}_0^{\mathtt{INDP}}$. This provides strong statistical evidence that $\mathrm{FCIX}_t$ and $\mathrm{MFI}_t$ are dependent, indicating that price-based market volatility and structural shifts in accounting fundamentals are jointly distributed and possibly mutually informative. These findings serve as a critical empirical foundation for evaluating market efficiency in the subsequent section.
+Both test statistics exceed their respective iid-permutation critical values at the $1\%$ significance level, leading to the rejection of the null hypothesis $\mathrm{H}_0^{\mathtt{INDP}}$. The block-permutation check weakens the rejection, as expected for persistent quarterly series, but still rejects at conventional levels (1\% for four-quarter blocks, 5\% for eight-quarter blocks). This provides evidence that $\mathrm{FCIX}_t$ and $\mathrm{MFI}_t$ are dependent, indicating that price-based market volatility and structural shifts in accounting fundamentals are jointly distributed and possibly mutually informative. These findings serve as a critical empirical foundation for evaluating market efficiency in the subsequent section.
 
 
 
@@ -561,12 +593,33 @@ Both test statistics exceed their respective critical values at the $1\%$ signif
 
 Having established the MFI as a summary of cross-sectional dispersion in fundamentals and demonstrated its statistical dependence with FCIX, we now assess whether the underlying tensor structure contains predictive information for next-quarter accounting values. The task is to forecast a firm-by-feature target matrix using the preceding $L$ quarters of fundamentals, with $L \in \{2,4\}$ corresponding to 6-month and 1-year lookbacks. Methodologically, this places us in the tensor-on-tensor regression literature \citep{zhou2013tensor, hoff2015multilinear, lock2018tensor}: rather than fitting a separate time-series model per accounting line item, a single low-rank multilinear map is estimated jointly across firms, features, and lags, so that predictive strength can be borrowed across the cross-section and across related line items. To our knowledge, supervised low-rank tensor regression has not previously been applied to forecasting the full joint panel of firm fundamentals.
 
-Our design philosophy throughout this and the following sections is deliberately conservative. Model architectures and hyperparameters are selected once, on a small development universe, and then \emph{locked}; all subsequent evaluations---a calendar-fixed holdout, a transfer test to the full cross-section, and a sequence of pre-registered economic hypotheses---reuse the frozen configurations without further tuning. Where a hypothesis fails, we report the failure.
+Our design philosophy throughout this and the following sections is deliberately conservative. Model architectures and hyperparameters are selected once, on a small development universe, and then \emph{locked}; all subsequent evaluations---a calendar-fixed holdout, a transfer test to the full cross-section, and a sequence of economic hypotheses specified ex ante---reuse the frozen configurations without further tuning. The declarations are timestamped in the version-controlled research log rather than in a formal registry. Where a hypothesis fails, we report the failure.
+
+The empirical work uses three deliberately distinct data vintages. The MFI/FCIX comparison uses fundamentals from 1990Q1--2024Q4 because the FCIX benchmark ends in 2024Q4; the prediction universe is selected using a fixed 2024Q4 market-cap snapshot; and the predictive and economic holdouts extend the fundamentals panel through 2026Q2, with the calendar-fixed training boundary unchanged.
+
+\begin{table}[!htbp]
+\centering
+\small
+\caption{Research-design timeline. Dates refer to timestamped entries in the version-controlled research log.}
+\label{Tab:Research_Timeline}
+\begin{tabular}{p{0.24\linewidth}p{0.30\linewidth}p{0.32\linewidth}}
+\toprule
+Stage & Frozen before evaluation & Role in the paper \\
+\midrule
+Prediction architecture & v3 residual and ridge-booster objectives locked after the June 20 holdout audit & Confirmatory holdout and transfer evidence \\
+Locked hyperparameters & Rank-1 cells from the June 20/29 summaries, reused without re-tuning & Input to all downstream analyses \\
+499-firm transfer gate & Declared July 6 before the wide-universe refit & Falsification of a mega-cap-only explanation \\
+Veer credit hypothesis & Declared July 6 before the 499-firm veer run & Confirmatory H1/H2 tests \\
+High-yield CDS test & Declared July 7 before HY estimation & Confirmatory traded-credit extension \\
+Secondary routing tests & Added only after headline outcomes were fixed & Exploratory/subordinate robustness \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Tensor construction and imputation}
 \label{Section:Tensor_Imputation}
 
-From the 40 fundamental features identified in Section~\ref{Section:Feature_Selection}, we construct a quarterly predictive panel using the same cleaned Compustat extract as the MFI analysis. Year-to-date cash-flow fields are converted to quarterly flows by within-fiscal-year differencing, while genuinely quarterly and trailing-twelve-month fields are retained as reported. The \emph{development} universe on which all hyperparameters are tuned consists of the top $N=50$ firms by Compustat market value (`mkvaltq') at 2024Q4, a reproducible large-cap set that keeps the search computationally tractable; Section~\ref{Section:Transfer_499} extends the locked models to the full cross-section of $499$ firms. We observe the development firms over 2005Q1--2024Q4, snapping report dates to a strict quarterly grid and keeping the last report per firm-quarter. This produces a raw tensor with shape $50 \times 40 \times 80$ and observed-entry density approximately $90.3\%$. Each feature is transformed by the log-modulus map
+From the 40 fundamental features identified in Section~\ref{Section:Feature_Selection}, we construct a quarterly predictive panel using the cleaned Compustat extract. Year-to-date cash-flow fields are converted to quarterly flows by within-fiscal-year differencing, while genuinely quarterly and trailing-twelve-month fields are retained as reported. The \emph{development} universe on which all hyperparameters are tuned consists of the top $N=50$ firms by Compustat market value (`mkvaltq') at 2024Q4, a reproducible large-cap set that keeps the search computationally tractable; Section~\ref{Section:Transfer_499} extends the locked models to the full cross-section selected from the top $499$ firms. We observe the development firms over 2005Q1--2024Q4, snapping report dates to a strict quarterly grid and keeping the last report per firm-quarter. This produces a raw tensor with shape $50 \times 40 \times 80$ and observed-entry density approximately $90.3\%$. Each feature is transformed by the log-modulus map
 \begin{equation}
 \phi(x) = \mathrm{sgn}(x)\log(1 + |x|),
 \end{equation}
@@ -645,7 +698,7 @@ where $\Omega_t$ is the set of observed entries in $\mathbfcal{X}_t$. We evaluat
   \node at (0.25,1.3) {\tiny $L \times R_3$};
 \end{scope}
 \end{tikzpicture}
-\caption{Mask-aware Tucker imputation for sparse fundamentals. To resolve missing entries without discarding sparse features, the incomplete input tensor $\mathbfcal{X}_t \in \mathbb{R}^{N \times F \times L}$ is approximated by a dense core tensor $\mathbfcal{H} \in \mathbb{R}^{R_1 \times R_2 \times L}$ contracted with orthogonal factor matrices $\mathbf{A}$, $\mathbf{B}$, and $\mathbf{C}$ along each respective mode. The validated ranks are $(R_1,R_2,L)=(2,2,2)$ for the two-quarter lookback and $(4,4,4)$ for the four-quarter lookback.}
+\caption{Mask-aware Tucker imputation for sparse fundamentals. To resolve missing entries without discarding sparse features, the incomplete input tensor $\mathbfcal{X}_t \in \mathbb{R}^{N \times F \times L}$ is approximated by a dense core tensor $\mathbfcal{H} \in \mathbb{R}^{R_1 \times R_2 \times L}$ contracted with orthogonal factor matrices $\mathbf{A}$, $\mathbf{B}$, and $\mathbf{C}$ along each respective mode. The decomposition is fitted on observed entries only; observed values are preserved exactly, and only missing cells are filled from the low-rank reconstruction. The validated ranks are $(R_1,R_2,L)=(2,2,2)$ for the two-quarter lookback and $(4,4,4)$ for the four-quarter lookback.}
 \label{Fig:Tucker_Imputation}
 \end{figure}
 
@@ -669,7 +722,7 @@ s = \sqrt{\frac{1}{|\Omega|}\sum_{(t,i,j)\in\Omega}(y_{tij}-\mu_{ij})^2},
 \end{equation}
 where $\Omega = \{(t,i,j): m_{tij}=1\}$, yielding $\tilde{y}_{tij} = m_{tij}(y_{tij}-\mu_{ij})/s$; missing entries are set to zero in the scaled target. Optional per-feature target and input rescalings are exposed as tuned binary switches.
 
-\textit{Ridge-booster cell.} The second baseline is the full per-feature ridge regression described in Section~\ref{Section:Baseline_Eval}---the same model that serves as our competitive benchmark. Here the CP tensor is trained on the ridge model's \emph{out-of-fold} residuals: within each training set, an inner three-fold time-series split produces ridge predictions for every window from models that never saw that window, and the CP target is $\tilde{y}_{tij} = m_{tij}(y_{tij} - \hat{y}^{\mathrm{ridge,OOF}}_{tij})/s$. Windows without honest out-of-fold coverage are excluded from CP training rather than back-filled. This out-of-fold discipline prevents the booster from learning the baseline's in-sample optimism, and at prediction time the baseline is refitted on the full training set.
+\textit{Ridge-booster cell.} The second baseline is the full per-feature ridge regression described in Section~\ref{Section:Baseline_Eval}---the same model that serves as our competitive benchmark. Here the CP tensor is trained on the ridge model's \emph{out-of-fold} residuals: within each training set, an inner three-fold time-series split produces ridge predictions for every window from models that never saw that window, and the CP target is $\tilde{y}_{tij} = m_{tij}(y_{tij} - \hat{y}^{\mathrm{ridge,OOF}}_{tij})/s$. Windows without valid out-of-fold coverage are excluded from CP training rather than back-filled. This out-of-fold discipline prevents the booster from learning the baseline's in-sample optimism, and at prediction time the baseline is refitted on the full training set.
 
 In both cells, the residual map is a low-rank CANDECOMP/PARAFAC (CP) tensor regression. The coefficient tensor $\mathbfcal{W} \in \mathbb{R}^{N \times F \times L \times N \times F}$ admits the CP form
 \begin{equation}
@@ -885,12 +938,12 @@ Two further regularities sharpen the picture. First, the booster delta is larges
 \section{Transfer to the Full Cross-Section}
 \label{Section:Transfer_499}
 
-A predictive gain established on fifty mega-caps could in principle be an artifact of that particularly well-measured corner of the market. We therefore refit all four locked cells---hyperparameters frozen, no re-tuning of any kind---on the full cross-section of the top 499 firms by 2024Q4 market value, using fundamentals through 2026Q2 and the same calendar-fixed split. The declared gate for this exercise was directional: if the CP increment collapsed to zero or below in all four cells, that collapse would itself be the finding.
+A predictive gain established on fifty mega-caps could in principle be an artifact of that particularly well-measured corner of the market. We therefore refit all four locked cells---hyperparameters frozen, no re-tuning of any kind---on the full cross-section selected from the top 499 firms by 2024Q4 market value, using fundamentals through 2026Q2 and the same calendar-fixed split. One selected firm has insufficient cache coverage, so the realized transfer tensor contains 498 firms. The ex ante criterion was directional: if the CP increment collapsed to zero or below in all four cells, that collapse would itself be the finding.
 
 % Numbers: prediction_new/results/v3_holdout_499_20260706/transfer_check_499.csv
 \begin{table}[!htbp]
 \centering
-\caption{Universe transfer at locked hyperparameters: pooled mask-aware test $R^2$ at 498 firms (22 test windows), against the 50-firm development deltas.}
+\caption{Universe transfer at locked hyperparameters: pooled mask-aware test $R^2$ for the 498 firms that survive cache construction from the 499-firm selection universe (22 test windows), against the 50-firm development deltas.}
 \label{Tab:Transfer_499}
 \begin{tabular}{llcccc}
 \toprule
@@ -904,7 +957,7 @@ Fixed effects & 4 & 0.693 & 0.713 & $+0.020$ & $+0.043$ \\
 \end{tabular}
 \end{table}
 
-Table~\ref{Tab:Transfer_499} shows the increment survives in all four cells. Against the ridge benchmark, the delta at 499 firms is essentially unchanged from the development universe; against fixed effects it remains clearly positive but shrinks to roughly $40\%$ of its mega-cap size. The multilinear structure is therefore not a mega-cap artifact, though its edge over weak baselines is strongest where fundamentals are best measured---a gradient that recurs throughout the economic analysis below.
+Table~\ref{Tab:Transfer_499} shows the increment survives in all four cells. Against the ridge benchmark, the transfer delta is essentially unchanged from the development universe; against fixed effects it remains clearly positive but shrinks to roughly $40\%$ of its mega-cap size. The multilinear structure is therefore not a mega-cap artifact, though its edge over weak baselines is strongest where fundamentals are best measured---a pattern that recurs throughout the economic analysis below.
 
 Computationally, the tenfold increase in the firm mode makes the stock CP-ALS implementation infeasible: materializing the Khatri--Rao design matrix at 498 firms exhausts memory. We instead exploit the fact that the ALS normal equations factorize exactly---the Gram matrix of the design factorizes into a Hadamard product of small per-mode Gram matrices---so no large intermediate is ever formed. The resulting solver is algebraically identical to the reference implementation (same initialization, same ridge solves, same convergence rule), reduces peak memory by two orders of magnitude, and was verified to reproduce the stock solver's output on the development universe.
 
@@ -919,7 +972,7 @@ An out-of-sample $R^2$ improvement in accounting space says nothing, by itself, 
 % Numbers: v3_holdout_ext_20260629_230144/multitarget_report_ext_*.txt + FLAGGED_volrisk_report_ridge_delta_v3_L2.txt
 The first battery aligns test-set forecasts with quarterly earnings announcements on the development universe (960 scored announcement events per cell over 21 test quarters). The \emph{ex ante} signal is the magnitude of the tensor's forecast adjustment: the standardized absolute difference between the ensemble and baseline predictions, available before the announcement. Outcomes include announcement-window abnormal returns and post-announcement realized and idiosyncratic volatility over the following 30 trading days, tested per feature--target pair with cross-sectional regressions and a Benjamini--Yekutieli false-discovery-rate control \citep{benjamini2001control} at $q<0.1$ over the full pair grid.
 
-Three findings are unambiguous. First, \emph{abnormal announcement returns are a clean null}: zero of the pre-registered return-family pairs survive FDR control, in all four cells. Whatever the tensor knows about fundamentals, it does not predict announcement-window price reactions in mega-caps. Second, the forecast-adjustment magnitude \emph{does} forecast post-announcement volatility beyond lagged realized volatility, but this is architecture-dependent: controlling for pre-event volatility, the signal remains significant ($|t| \geq 2$) in 75 and 69 of 80 pairs in the two ridge-booster cells, against only 13 and 6 in the fixed-effects cells. Third, and decisively for tradeability, the volatility information is \emph{subsumed by option prices}: adding the pre-event at-the-money implied volatility from OptionMetrics as a control eliminates the majority of significant pairs in every cell (at best 29 of 80 survive, in most cells far fewer), and a long--short straddle proxy sorted on the signal against the implied benchmark earns uniformly negative or mixed means---the mechanical variance risk premium, not alpha. The honest summary: the tensor's volatility signal is economically real but already embedded in option prices for these firms.
+Three findings are unambiguous. First, \emph{abnormal announcement returns are a clean null}: zero of the ex ante return-family pairs survive FDR control, in all four cells. Whatever the tensor knows about fundamentals, it does not predict announcement-window price reactions in mega-caps. Second, the forecast-adjustment magnitude \emph{does} forecast post-announcement volatility beyond lagged realized volatility, but this is architecture-dependent: controlling for pre-event volatility, the signal remains significant ($|t| \geq 2$) in 75 and 69 of 80 pairs in the two ridge-booster cells, against only 13 and 6 in the fixed-effects cells. Third, and decisively for tradeability, the volatility information is \emph{subsumed by option prices}: adding the pre-event at-the-money implied volatility from OptionMetrics as a control eliminates the majority of significant pairs in every cell (at best 29 of 80 survive, in most cells far fewer), and a long--short straddle proxy sorted on the signal against the implied benchmark earns uniformly negative or mixed means---the mechanical variance risk premium, not alpha. In short, the tensor's volatility signal is real but already embedded in option prices for these firms.
 
 \subsection{Forecast-error signals and credit: the veer framework}
 \label{Section:Veer}
@@ -927,14 +980,14 @@ Three findings are unambiguous. First, \emph{abnormal announcement returns are a
 % Definitions: prediction_new/veer_anomaly_experiment.py; numbers: v3_holdout_499_20260706/veer_report_*.txt
 The event studies use the forecast's \emph{magnitude}; the richer object is the forecast \emph{error}---the direction in which a firm's realized fundamentals veer away from the model's expectation. For each firm, feature, and test quarter we form a studentized forecast surprise: the realized-minus-predicted error, de-biased by an expanding firm-level median of past errors and scaled by an expanding per-feature median absolute deviation (using only past test quarters, with a four-quarter burn-in). Feature-level surprises are aggregated into five themed scores (leverage, earnings, investment, balance-sheet liquidity, and cash flow) following the natural accounting groupings of the 40 features, and a three-quarter rolling mean of each themed score defines a \emph{drift} signal capturing persistent, directional veering. All signals are ex ante: they use only information available after quarter $t$'s announcement to predict outcomes over the following quarter.
 
-On the 499-firm universe (roughly 6{,}900 scored events per cell over 18 test quarters), we pre-registered a single headline hypothesis: \emph{persistent cash-flow over-performance against the tensor forecast predicts improving credit quality}, measured as the change in a naive Merton distance-to-default \citep{bharath2008forecasting} from two trading days before the announcement to 63 trading days after, controlling for the pre-event level and pre-trend. The test is a Fama--MacBeth regression \citep{fama1973risk} across announcement quarters, with a partial rank information coefficient as a secondary check, and a declared success criterion of a positive slope at one-sided $p<0.05$ in at least two of four cells.
+On the 499-firm selection universe (roughly 6{,}900 scored events per cell over 18 test quarters), we specified one headline hypothesis before evaluation: \emph{persistent cash-flow over-performance against the tensor forecast predicts improving credit quality}, measured as the change in a naive Merton distance-to-default \citep{bharath2008forecasting} from two trading days before the announcement to 63 trading days after, controlling for the pre-event level and pre-trend. The test is a Fama--MacBeth regression \citep{fama1973risk} across announcement quarters, with a partial rank information coefficient as a secondary check, and a declared success criterion of a positive slope at one-sided $p<0.05$ in at least two of four cells.
 
 % Numbers: veer_report_*_499.txt; PD translation: h1_pd_translation_499.csv
-The hypothesis was confirmed; Table~\ref{Tab:H1_DD} reports the four cells. The Fama--MacBeth slope is $+0.020$ in \emph{all four} (a striking stability), with one-sided $p = 0.033$ and $0.040$ in the two fixed-effects cells, $p = 0.060$ and $0.071$ in the ridge cells, and a positive partial rank IC ($t \approx +2.1$ to $+2.6$) everywhere.
+The hypothesis was confirmed; Table~\ref{Tab:H1_DD} reports the four cells. The Fama--MacBeth slope is $+0.020$ in \emph{all four cells}, with one-sided $p = 0.033$ and $0.040$ in the two fixed-effects cells, $p = 0.060$ and $0.071$ in the ridge cells, and a positive partial rank IC ($t \approx +2.1$ to $+2.6$) throughout.
 
 \begin{table}[!htbp]
 \centering
-\caption{Pre-registered credit test at 499 firms: Fama--MacBeth slope of the post-announcement change in distance-to-default on the cash-flow drift signal, with pre-event level and pre-trend controls ($\approx$6{,}900 events per cell; declared sign positive, one-sided $p$; success bar: $p<0.05$ in $\geq 2$ of 4 cells).}
+\caption{Credit test specified ex ante on the 499-firm selection universe: Fama--MacBeth slope of the post-announcement change in distance-to-default on the cash-flow drift signal, with pre-event level and pre-trend controls ($\approx$6{,}900 events per cell; declared sign positive, one-sided $p$; success bar: $p<0.05$ in $\geq 2$ of 4 cells).}
 \label{Tab:H1_DD}
 \begin{tabular}{llcccc}
 \toprule
@@ -946,20 +999,20 @@ Fixed effects & 2 & $+0.0202$ & $+2.28$ & 0.040 & $+2.4$ \\
 Fixed effects & 4 & $+0.0204$ & $+2.39$ & 0.033 & $+2.6$ \\
 \bottomrule
 \end{tabular}
-\end{table} In economic units, a one-standard-deviation cash-flow drift maps to a distance-to-default improvement of $+0.05$ to $+0.07$; evaluated on the panel's distance-to-default distribution, this is a $29\%$ to $56\%$ \emph{relative} reduction in the model-implied physical default probability, growing with the firm's initial credit quality. We emphasize the honest caveat immediately: for this investment-grade mega/large-cap universe the absolute default probabilities are astronomically small, so a large relative change need not be worth anything in traded prices---the question the next subsection was designed to answer. The pre-registered secondary hypothesis (that the joint set of veer signals adds out-of-sample explanatory power for post-announcement changes in implied volatility) passed formally in three of four cells but with increments of at most $+0.003$ in $R^2$; we treat it as economically negligible, consistent with the option-subsumption result above.
+\end{table} In economic units, a one-standard-deviation cash-flow drift maps to a distance-to-default improvement of $+0.05$ to $+0.07$; evaluated on the panel's distance-to-default distribution, this is a $29\%$ to $56\%$ \emph{relative} reduction in the model-implied physical default probability, growing with the firm's initial credit quality. For this investment-grade universe, however, absolute default probabilities are tiny, so a large relative change need not be reflected in traded prices; the next subsection tests exactly that. The secondary hypothesis specified ex ante (that the joint set of veer signals adds out-of-sample explanatory power for post-announcement changes in implied volatility) passed formally in three of four cells but with increments of at most $+0.003$ in $R^2$; we treat it as economically negligible, consistent with the option-subsumption result above.
 
 \subsection{Traded credit: an investment-grade null and a high-yield confirmation}
 \label{Section:CDS}
 
 % Numbers: v3_holdout_499_20260706/cds_h1_translation_499.csv
-To test whether the credit information is priced, we extended the confirmed hypothesis to market credit-default-swap spreads: five-year single-name CDS (senior unsecured, XR/XR14 documentation) from Markit, matched to 169 of the 499 firms with a name-validated link. The declared target was the change in log spread over the same event window, with the same controls; expected sign negative (over-performance tightens spreads). The result is a \emph{clean null in all four cells}: slopes are indistinguishable from zero ($|t| < 0.15$), amounting to $\pm 0.03$ basis points per one-standard-deviation signal at the sample's 56 basis-point median spread. Crucially, a composition check re-ran the confirmed distance-to-default regression on exactly the CDS-covered subsample: the slope is intact and slightly larger ($+0.024$ to $+0.026$, $t > 2$). The same firm-events whose model-implied credit quality improves show no movement in their traded spread. For investment-grade mega-caps, every traded price we test---equity around announcements, options on volatility, and now CDS on credit---already embeds what the tensor forecast errors know; only model-implied quantities respond. An exploratory cut foreshadowed the resolution: within the investment-grade panel, the distance-to-default effect concentrates in the highest spread tercile in all four cells, suggesting the channel prices where default risk is material.
+To test whether the credit information is priced, we extended the confirmed hypothesis to market credit-default-swap spreads: five-year single-name CDS (senior unsecured, XR/XR14 documentation) from Markit, matched to 169 of the 499 firms with a name-validated link. The declared target was the change in log spread over the same event window, with the same controls; expected sign negative (over-performance tightens spreads). The result is a \emph{clean null in all four cells}: slopes are indistinguishable from zero ($|t| < 0.15$), amounting to $\pm 0.03$ basis points per one-standard-deviation signal at the sample's 56 basis-point median spread. The null is not a matching artifact: re-running the distance-to-default regression on exactly the CDS-covered subsample leaves the slope intact and slightly larger ($+0.024$ to $+0.026$, $t > 2$). The same firm-events whose model-implied credit quality improves show no movement in their traded spread. For investment-grade mega-caps, every traded price we test---equity around announcements, options on volatility, and CDS on credit---already embeds what the tensor forecast errors know; only model-implied quantities respond. Within the investment-grade panel, however, the distance-to-default effect concentrates in the highest spread tercile in all four cells, suggesting the channel matters where default risk is material.
 
 % Universe: build_hy_universe.py; numbers: v3_holdout_hy_20260707/cds_h1_translation_hy.csv
-We therefore constructed a dedicated high-yield/crossover universe and declared the hypothesis once more before touching the model. Starting from all 970 U.S. five-year senior CDS reference entities in Markit, we retained the 298 with median spreads of at least 150 basis points and linked them to CRSP/Compustat with normalized-name matching plus a hand-audited whitelist and blacklist (mapping financing subsidiaries to listed parents and discarding private or defunct entities), yielding 128 linked issuers, of which 113 pass the pipeline's universe gate. The accepted set has a median five-year spread of 289 basis points against 56 in the investment-grade sample---genuine crossover/high-yield credit. One design limitation is inherited and disclosed: the universe conditions on survival to 2024Q4, so the very blow-ups where the signal might be strongest are excluded, biasing against finding an effect. The full pipeline was re-run at locked hyperparameters; the transfer gate passed in three of four cells (the CP increment turns negative in the fixed-effects $L=4$ cell---the first such collapse anywhere, consistent with CP structure weakening as fundamentals get noisier down the quality spectrum).
+We therefore constructed a dedicated high-yield and crossover universe, again declaring the hypothesis before estimation. From the U.S. five-year senior CDS reference entities in Markit, we selected issuers with median spreads of at least 150 basis points and matched them to listed CRSP/Compustat firms, yielding a universe of 113 names with a median spread of 289 basis points, against 56 in the investment-grade sample.\footnote{Matching is by normalized issuer name, with financing subsidiaries mapped to their listed parents and private or defunct entities excluded. Of 970 reference entities, 298 met the spread threshold and 128 matched, of which 113 had sufficient fundamentals coverage.} Because the universe is defined at 2024Q4 it conditions on survival, which excludes defaulted names and biases against the hypothesis. The full pipeline was re-estimated at locked hyperparameters; the CP increment remains positive in three of four cells, turning negative in the fixed-effects $L=4$ cell, consistent with low-rank structure weakening as fundamentals become noisier down the credit spectrum.
 
 \begin{table}[!htbp]
 \centering
-\caption{Pre-registered high-yield CDS test: Fama--MacBeth slope of the post-announcement change in log five-year CDS spread on the cash-flow drift signal, with pre-event spread level and pre-trend controls (900 events, 90 CDS-covered firms, 13 quarters per cell; declared sign negative, one-sided $p$). Basis-point impact evaluated at the 282 bp sample median spread.}
+\caption{High-yield CDS test specified ex ante: Fama--MacBeth slope of the post-announcement change in log five-year CDS spread on the cash-flow drift signal, with pre-event spread level and pre-trend controls (900 events, 90 CDS-covered firms, 13 quarters per cell; declared sign negative, one-sided $p$). Basis-point impact evaluated at the 282 bp sample median spread.}
 \label{Tab:HY_CDS}
 \begin{tabular}{llcccc}
 \toprule
@@ -973,17 +1026,40 @@ Fixed effects & 4 & $-0.0104$ & $-1.96$ & 0.037 & $-6.4$ \\
 \end{tabular}
 \end{table}
 
-Table~\ref{Tab:HY_CDS} reports the pre-registered outcome: the hypothesis is confirmed in \emph{all four cells} against a declared bar of two. In crossover and high-yield names, a one-standard-deviation persistent cash-flow over-performance against the tensor forecast predicts approximately $2.3\%$ of spread tightening---about 6.5 basis points at the median spread---over the following quarter, controlling for the spread level and its pre-trend, with negative partial rank ICs in all four cells. The same signal that moved only a model-implied credit metric in the investment-grade universe moves the traded market price of credit here. Together, the two CDS experiments trace an efficiency gradient: mega-cap investment-grade prices are fully efficient with respect to this information set, while high-yield credit incorporates it with a measurable lag. The sample is small (90 firms, 13 quarters) and the four cells are correlated, so we present this as one robust pre-registered finding rather than four.
+We subject this CDS result to a small robustness battery, summarized in Table~\ref{Tab:HY_CDS_Robust}. The sign is stable: the cash-flow drift coefficient is negative in every cell under log-spread changes at 21-, 42-, and 63-trading-day horizons, under raw-basis-point spread changes, after one-quarter-at-a-time deletions, and within each pre-event spread tercile. Statistical strength is not uniform. The 42-day window is strongest; raw spread changes preserve the economic sign and imply larger basis-point moves but are noisier; 5\% winsorization and dropping 2022 tightening quarters attenuate significance in some cells. The tercile split is economically useful: the basis-point effect is largest in the widest-spread tercile, consistent with the signal mattering most where default risk is closest to the money.
 
-Finally, three subordinate results complete the honest accounting. First, an options-tradeability battery was pre-registered on the high-yield universe (the same straddle-proxy long--short construction that failed at mega-caps): the primary criterion---a positive and bootstrap-significant long--short straddle mean in at least two of four cells---was met exactly at the declared bar, but only in the two $L=4$ cells, and the secondary criterion (per-pair significance incremental to implied volatility) failed in all four; we read this as a lumpy, architecture-dependent sort-level edge, clearly weaker than the CDS result, and do not claim a second tradeable leg. Second, the drift signal does \emph{not} predict forward equity returns at 499 firms (Fama--MacBeth $t < 0.8$ everywhere; tercile long--short spreads positive but insignificant), closing the equity route in this universe for both the magnitude and error-direction signals. Third, forecast errors are essentially idiosyncratic: clustering firms by error co-movement recovers no sectoral structure (adjusted Rand index versus GICS below $0.04$ in every cell) and the first principal component explains under $4\%$ of error variance---the veer signals are firm-specific news, not a missed common factor.
+\begin{table}[!htbp]
+\centering
+\caption{High-yield CDS robustness summary. Entries aggregate the four locked cells. The sign column reports the number of cells with the expected negative slope; the basis-point range is the implied effect of a one-standard-deviation cash-flow drift at the relevant median spread.}
+\label{Tab:HY_CDS_Robust}
+\begin{tabular}{lccc}
+\toprule
+Variant & Expected sign & bp range & Comment \\
+\midrule
+Log spread, +21td & 4/4 & $-3.9$ to $-4.4$ & shorter-window effect \\
+Log spread, +42td & 4/4 & $-6.3$ to $-6.7$ & strongest t-statistics \\
+Log spread, +63td & 4/4 & $-6.3$ to $-6.9$ & headline window \\
+Raw spread change, +63td & 4/4 & $-12.4$ to $-14.5$ & noisier in levels \\
+1\% winsorized, +63td & 4/4 & $-5.6$ to $-6.4$ & sign intact \\
+5\% winsorized, +63td & 4/4 & $-4.0$ to $-5.1$ & attenuated \\
+Drop 2022 quarters & 4/4 & $-5.4$ to $-6.5$ & reduced power \\
+Leave-one-quarter-out & 4/4 & $-5.0$ to $-8.6$ & sign never flips \\
+Widest spread tercile & 4/4 & $-11.9$ to $-18.4$ & largest economic effect \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{Tab:HY_CDS} reports the outcome specified ex ante: the hypothesis is confirmed in \emph{all four cells} against a declared bar of two. In crossover and high-yield names, a one-standard-deviation persistent cash-flow over-performance against the tensor forecast predicts approximately $2.3\%$ of spread tightening---about 6.5 basis points at the median spread---over the following quarter, controlling for the spread level and its pre-trend, with negative partial rank ICs in all four cells. The same signal that moved only a model-implied credit metric in the investment-grade universe moves the traded market price of credit here. Together, the two CDS experiments are consistent with faster incorporation of this information in mega-cap investment-grade markets and slower incorporation where default risk is material. Given the small sample (90 firms, 13 quarters) and the correlation across cells, we count this as a single confirmation rather than four independent ones.
+
+Three secondary results complete the picture. First, an options-tradeability battery was specified ex ante on the high-yield universe, using the same straddle-proxy long--short construction that failed at mega-caps: the primary criterion---a positive and bootstrap-significant long--short straddle mean in at least two of four cells---was met exactly at the declared bar, but only in the two $L=4$ cells, and the secondary criterion (per-pair significance incremental to implied volatility) failed in all four. We interpret this as a weak, configuration-dependent effect and do not claim a second tradeable result. Second, the drift signal does \emph{not} predict forward equity returns in the 499-firm selection universe (Fama--MacBeth $t < 0.8$ everywhere; tercile long--short spreads positive but insignificant), closing the equity route in this universe for both the magnitude and error-direction signals. Third, forecast errors are essentially idiosyncratic: clustering firms by error co-movement recovers no sectoral structure (adjusted Rand index versus GICS below $0.04$ in every cell) and the first principal component explains under $4\%$ of error variance---the veer signals are firm-specific news, not a missed common factor.
 
 \section{Conclusion}
 
 This paper develops a tensor-based framework for firm fundamentals in three movements. First, treating the panel of accounting data as a third-order tensor, we constructed the Market Fundamentals Index from the temporal factors of a mask-aware Tucker decomposition and showed that this fundamentals-based volatility measure is statistically dependent on price-based chaos (FCIX), with independence rejected at the $1\%$ level.
 
-Second, we showed the same tensor structure is predictive. A low-rank CP tensor regression, deployed as a booster over per-feature ridge and fixed-effects baselines with strict out-of-fold discipline, improves out-of-time forecasts of next-quarter fundamentals in every locked configuration, on both a 50-firm development universe and the full 499-firm cross-section at frozen hyperparameters. The gain concentrates precisely on non-stationary, trending line items and on periods of cross-sectional co-movement---the regimes where per-feature linear models are mis-specified and shared low-rank structure exists to be exploited.
+Second, we showed the same tensor structure is predictive. A low-rank CP tensor regression, deployed as a booster over per-feature ridge and fixed-effects baselines with strict out-of-fold discipline, improves out-of-time forecasts of next-quarter fundamentals in every locked configuration, on both a 50-firm development universe and the wider 499-firm selection universe at frozen hyperparameters. The gain concentrates precisely on non-stationary, trending line items and on periods of cross-sectional co-movement---the regimes where per-feature linear models are mis-specified and shared low-rank structure exists to be exploited.
 
-Third, we asked whether markets price what the tensor knows, under a pre-registration discipline that commits to hypotheses, criteria, and interpretations before each test. The answer is a coherent efficiency gradient. In mega-cap investment-grade names, every traded price we examined---announcement returns, option-implied volatility, and CDS spreads---already embeds the information in the tensor's forecasts and forecast errors; only model-implied quantities (a Merton distance-to-default) respond, and a large relative improvement in an infinitesimal default probability is worth nothing at the spread. In crossover and high-yield credit, where default risk is material, the pre-registered test confirmed in all four model configurations that persistent cash-flow over-performance against the tensor forecast predicts economically meaningful spread tightening---roughly 6.5 basis points per standard deviation per quarter at the median spread---controlling for spread level and momentum. The framework's marginal economic value thus lives exactly where theory says information should be slowest to price: lower down the credit spectrum, in the market's least-arbitraged corner.
+Third, we asked whether markets price what the tensor knows, using hypotheses, criteria, and interpretations specified before evaluation and timestamped in the research log. In mega-cap investment-grade names, every traded price we examined---announcement returns, option-implied volatility, and CDS spreads---already embeds the information in the tensor's forecasts and forecast errors; only model-implied quantities (a Merton distance-to-default) respond, and a large relative improvement in an infinitesimal default probability is worth little at the spread. In crossover and high-yield credit, where default risk is material, the ex ante CDS test confirmed in all four model configurations that persistent cash-flow over-performance against the tensor forecast predicts economically meaningful spread tightening---roughly 6.5 basis points per standard deviation per quarter at the median spread---controlling for spread level and momentum. The pattern is consistent with slower incorporation of this information lower down the credit spectrum.
 
 The analysis has candid limitations that chart the path forward: the high-yield sample is short and survivorship-gated, the four model cells are correlated rather than independent replications, and the equity and options routes remain closed or fragile. Natural extensions include longer high-yield histories, dead-firm inclusion to remove the survivorship gate, and routing the veer signals to credit instruments directly tradeable at scale.
 

@@ -1,0 +1,28 @@
+[1/4] reading 90-26_Q_Fundamentals_v2_extended.csv
+      selecting top 50 firms by mkvaltq at 2024Q4
+      universe size: 50 gvkeys
+      filtered rows: 4,091  gvkeys: 50  quarters: 86
+[2/4] applying 40-feature spec (incl. ytd_to_quarterly for cash-flow YTDs)
+      applying log-modulus transform (sign-preserving compression)
+[3/4] building raw tensor: 50 firms x 40 features x 86 quarters
+      raw observed density: 89.85%
+      meta saved to /student/mcnama53/Projects/Tensor Research/replication/verify/cache_scratch/meta.pkl
+[4/4] per-window Tucker imputation (LEVELS + SURPRISE x L=2 + L=4)
+
+=== LEVELS L=2: 84 windows, ranks=[2, 2, 2] ===
+  windows: 84/84  avg recon: 0.4018  Tucker fails: 0/84  elapsed: 0.8s
+  saved -> /student/mcnama53/Projects/Tensor Research/replication/verify/cache_scratch/tensor_levels_L2.pkl
+
+=== LEVELS L=4: 82 windows, ranks=[4, 4, 4] ===
+  windows: 82/82  avg recon: 0.3599  Tucker fails: 0/82  elapsed: 0.7s
+  saved -> /student/mcnama53/Projects/Tensor Research/replication/verify/cache_scratch/tensor_levels_L4.pkl
+
+=== SURPRISE L=2: 84 windows, ranks=[2, 2, 2] ===
+  windows: 84/84  avg recon: 0.4018  Tucker fails: 0/84  elapsed: 0.3s
+  saved -> /student/mcnama53/Projects/Tensor Research/replication/verify/cache_scratch/tensor_surprise_L2.pkl
+
+=== SURPRISE L=4: 82 windows, ranks=[4, 4, 4] ===
+  windows: 82/82  avg recon: 0.3599  Tucker fails: 0/82  elapsed: 0.7s
+  saved -> /student/mcnama53/Projects/Tensor Research/replication/verify/cache_scratch/tensor_surprise_L4.pkl
+
+=== DONE ===

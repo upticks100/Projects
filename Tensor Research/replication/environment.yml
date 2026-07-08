@@ -1,0 +1,17 @@
+# Conda/mamba environment for the tensor replication package.
+# Mirrors the lab `research` env (only the packages this package imports).
+#   mamba env create -f environment.yml
+name: tensor-replication
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - numpy=2.2
+  - pandas=2.2
+  - scipy=1.15
+  - scikit-learn=1.7
+  - tensorly=0.9
+  - statsmodels=0.14
+  - matplotlib=3.10
+  - psycopg2-binary=2.9   # WRDS fetchers only; analyses run offline from CSVs
+  - optuna=4.6            # only needed if re-running the (historical) hyperparameter search

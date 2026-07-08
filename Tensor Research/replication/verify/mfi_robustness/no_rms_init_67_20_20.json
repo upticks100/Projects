@@ -1,0 +1,13 @@
+{
+  "rank": [
+    67,
+    20,
+    20
+  ],
+  "normalization": "none",
+  "init": "svd_initialization_only",
+  "seed": 42,
+  "max_iter": 1,
+  "observed_relative_error": 0.06004773233912957,
+  "corr_with_baseline_mfi": 0.946265757901417
+}

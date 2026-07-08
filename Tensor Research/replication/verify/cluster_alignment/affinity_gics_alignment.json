@@ -1,0 +1,60 @@
+{
+  "meta": {
+    "features": [
+      "GProf",
+      "evm",
+      "roe",
+      "debt_ebitda",
+      "fcf_ocf",
+      "quick_ratio"
+    ],
+    "sec_missing_threshold": 0.25,
+    "design_shape": [
+      289,
+      6
+    ],
+    "n_ap_clusters": 27
+  },
+  "rows": [
+    {
+      "gics_level": "gsector",
+      "n_firms": 289,
+      "n_gics_classes": 11,
+      "n_ap_clusters": 27,
+      "ari": 0.13517273119479517,
+      "nmi": 0.34868545145830243,
+      "ami": 0.2348339631640656,
+      "purity": 0.4740484429065744
+    },
+    {
+      "gics_level": "ggroup",
+      "n_firms": 289,
+      "n_gics_classes": 23,
+      "n_ap_clusters": 27,
+      "ari": 0.18176243501346703,
+      "nmi": 0.43761426187195746,
+      "ami": 0.2582845169778458,
+      "purity": 0.3875432525951557
+    },
+    {
+      "gics_level": "gind",
+      "n_firms": 289,
+      "n_gics_classes": 55,
+      "n_ap_clusters": 27,
+      "ari": 0.14007790574896772,
+      "nmi": 0.5311513578561881,
+      "ami": 0.2550045176930867,
+      "purity": 0.29411764705882354
+    },
+    {
+      "gics_level": "gsubind",
+      "n_firms": 289,
+      "n_gics_classes": 94,
+      "n_ap_clusters": 27,
+      "ari": 0.12101838376386118,
+      "nmi": 0.5778595401810631,
+      "ami": 0.22285892435315116,
+      "purity": 0.25951557093425603
+    }
+  ]
+}

@@ -1,12 +1,44 @@
 # CP vs Fixed-Effects Ridge Prediction Handoff
 
-Date: 2026-04-30 (initial), 2026-07-06 (latest addendum)
+Date: 2026-04-30 (initial), 2026-07-07 (latest addendum)
 Project root: `/student/mcnama53/Projects/Tensor Research`
 Primary log: `RESEARCH_LOG.md`
 Current prediction code: `Code for paper/prediction_new/`
 Stale paper narrative: `Paper_Draft/main.tex`
 
-## 2026-07-06 SUPERSEDING ADDENDUM (READ THIS FIRST — everything below is historical)
+## 2026-07-07 WHY THE MODEL TYPE CHANGED (consolidated, read before the historical sections)
+
+Full detail in `RESEARCH_LOG.md`, entry "CONSOLIDATED: full architecture
+history, Pure_CP → FE+Ridge+CP booster" (2026-07-07 evening). Short version:
+
+The original (Jan 2026, pre-log) design was Pure CP + fixed effects on
+`N=49`/`F=24`, selected by pooled R², benchmarked against ridge — this is
+still what `main.tex`'s prediction section describes. The Apr 26–29
+40-feature/499-firm data rebuild triggered a rerun of that same search at
+scale, which exposed three separate, successively-deeper problems, each
+caught by a dedicated audit rather than assumed away:
+
+1. **Apr 30** — pooled R² is degenerate: CP could "win" by shrinking to zero
+   and reproducing pure FE. Fixed with the `residual_delta` objective
+   (`R²(FE+CP) − R²(FE-only)`).
+2. **May 25** — `residual_delta` v1 (7 days of search) still gravitated to
+   FE-imitation via high rank + heavy regularization. Fixed with
+   `residual_delta_v2` (explicit `GAMMA` floor + per-feature scaling). Also:
+   a real inner-CV leakage bug in the CP-matched Ridge baseline's alpha
+   selection was found and patched the same day.
+3. **Jun 19** — the Ridge-booster track's headline delta was found to be
+   partly an OOF-fallback artifact (CP training against nothing in early
+   windows lacking real out-of-fold Ridge predictions). Fixed by dropping
+   un-initialized rows from booster training.
+
+The two-track split (FE-residual CP vs. Ridge-booster CP, `residual_delta_v3`
+/ `ridge_delta_v3`) was introduced May 28 and is the architecture that
+survives into `main_v2.tex`, validated on the Jun 20 v3 holdout (CP wins all
+4 locked cells). **The 40-feature expansion did not break the old model
+mechanically — it triggered the rerun that surfaced a pooled-R² flaw latent
+since January.**
+
+## 2026-07-06 SUPERSEDING ADDENDUM (READ THIS FIRST for current operational status — everything below is historical)
 
 **The section titled "CURRENT EXECUTION PLAN (Authoritative)" further down is the
 APRIL state and is NO LONGER AUTHORITATIVE** (external audit Finding 5). It is kept

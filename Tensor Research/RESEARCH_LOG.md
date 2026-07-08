@@ -10,6 +10,166 @@ distilled version that's actually worth reading later.
 
 ---
 
+## 2026-07-07 (late night) — Clean replication package + study guide closeout; referee-feedback pass
+
+Executed the `clean_replication_package_6fd6c1b0` plan without editing the plan
+file. The original `Code for paper/` remains the historical record; new clean
+surface is under `replication/`.
+
+### Replication package
+- `STUDY_GUIDE.md` written: paper-section-to-code map, glossary, reading order,
+  and suggested ChatGPT study workflow.
+- `MODEL_HISTORY.md` written separately as the readable chronology of the
+  prediction architecture change (Pure_CP -> FE/Ridge residual CP boosters).
+- `replication/` scaffolded and filled:
+  - `config.py`, `environment.yml`, `locked_cells.csv`, `README.md`.
+  - `src/data/`: fundamentals/CRSP/OptionMetrics/Markit fetchers plus universe
+    and HY curation helpers.
+  - `src/tensors/`: rolling Tucker cache builder and exact low-memory
+    `LowMemCPRegressor`.
+  - `src/model/`: locked-cell refit/dump and transfer check.
+  - `src/mfi/`: clean MFI rebuild, figure generation, robustness helpers, and
+    block-permutation MFI-FCIX test.
+  - `src/analysis/`: event-study dataset/analyzer, veer, CDS translation,
+    HY robustness battery, and cluster-alignment metrics.
+  - `scripts/01_*.py`..`07_*.py`: thin stage CLIs.
+
+### Verification
+- Cache equivalence: rebuilt the 50-firm extended cache into
+  `replication/verify/cache_scratch/` with `REPL_END_DATE=2026-03-31`; compared
+  against `prediction_new/tensor_cache_ext/`. All four pickles match exactly
+  for `X`, `Y`, masks, recon errors, and failure flags (`max_abs=0`).
+- Low-memory CP equivalence: `tests/test_cp_lowmem_equiv.py` passes in the
+  research env; block sizes 1, 4, 100 all give `rel dW=0`, `rel dPred=0`.
+- One-cell refit: `residual_delta_v3`, L=2 refit with `REPL_CP_LOWMEM=1` matches
+  locked holdout exactly: base R2 `0.72063`, ensemble R2 `0.76823`, delta
+  `+0.04760`; dump written to `replication/verify/refit_lowmem/`.
+- Analyzer checks: 499-firm transfer and CDS translation artifacts in
+  `replication/verify/analyzers_499/`; transfer positive in all four cells.
+- Python compile check: `python -m compileall -q src scripts tests` passes.
+
+### Referee-feedback fixes applied in `Paper_Draft/main_v2.tex`
+- Language/disclosure: replaced formal "pre-registered" wording with
+  "specified ex ante"; added version-controlled log caveat; softened efficiency
+  claims; clarified 499 selection universe vs 498 firms surviving cache
+  construction; added data-vintage note at start of prediction section.
+- Added compact research-design timeline table.
+- HY CDS robustness battery added in `src/analysis/cds_translation.py` and run
+  on existing HY dumps. Output:
+  `replication/verify/hy_cds_robustness.csv`. Sign is stable across raw/log
+  spreads, 21/42/63td windows, winsorization, quarter drops, leave-one-quarter
+  out, and spread terciles; significance weakens under raw spread changes,
+  5% winsorization, and dropping 2022 tightening quarters. Paper reports this
+  honestly in a new robustness table.
+- MFI-FCIX block permutation added and run:
+  `replication/verify/mfi_block_permutation/`. Four-quarter blocks reject at
+  1%; eight-quarter blocks reject at 5%, so dependence survives but the 1%
+  claim is softened under longer serial blocks.
+- Affinity-cluster vs GICS metrics added and run:
+  `replication/verify/cluster_alignment/affinity_gics_alignment.csv`. Added
+  ARI/NMI/purity table in the feature-selection section.
+- MFI stability diagnostics added from saved v2 decomposition, completed
+  rank/normalization variants, and prior init audit. RMS aggregation of time
+  factors correlates 0.968 with the baseline mean-absolute MFI; single-factor
+  MFI is less stable (0.581); nearby rank/normalization checks stay highly
+  correlated with the baseline (min 0.938; no-RMS [67,20,20] = 0.996);
+  random Tucker starts are not competitive under the same budgets, supporting
+  SVD initialization.
+
+### Paper/build
+- `main_v2.tex` compiles cleanly with Tectonic after the edits: no undefined
+  citations or references in the compile output.
+
+---
+
+## 2026-07-07 (evening) — CONSOLIDATED: full architecture history, Pure_CP → FE+Ridge+CP booster
+
+Written in response to a direct question about why the model type changed and
+whether the 40-feature expansion "broke" the original design. It didn't break
+anything mechanically — the expansion triggered a rerun that exposed a chain
+of three separate objective/estimator problems, each caught by a deliberate
+audit before being trusted. This entry exists because the full story was
+scattered across a dozen entries below and took real digging to reconstruct;
+future readers (including the paper's co-author) should start here.
+
+**Jan 25–26, 2026 (pre-log, predates `RESEARCH_LOG.md`).** Original design:
+`N=49` firms, `F=24` features, low-rank CP tensor regression with
+firm-by-feature fixed effects + RMS normalization, selected by pooled R²,
+benchmarked against a per-feature ridge baseline. This is what
+`Paper_Draft/main.tex`'s prediction section still describes (its exhibit
+numbers were bumped to N=50/F=40 at some point without updating the
+architecture prose — one of the things `main_v2.tex` fixes). Scripts:
+`Pure_CP_Structured.py`, `Ensemble_Structured.py`, `Tensor_regression_firms.py`.
+No RESEARCH_LOG entries exist for this period; reconstructed from git history
+(`77fa0e9`, `04ec9ec`) and `Paper_Draft/predictive.tex`.
+
+**Apr 26–29.** Root-caused that 12 of the 24 features were 0%-dense
+(Compustat reports cash-flow items YTD-only; no quarterly siblings exist).
+Pulled full `comp.fundq` (648 cols), finalized the 40-feature spec, rebuilt
+the panel/tensor on clean data (`90-25_Q_Fundamentals_v2.csv`).
+
+**Apr 29 night.** Relaunched the *old* Pure_CP + pooled-R² Optuna search
+(unchanged objective) on the new 40-feature data across 16 lab machines.
+
+**Apr 30 — Problem #1: pooled-R² objective is degenerate.** Top CP trials'
+test R² matched the FE-only baseline to 6 decimals. Diagnosis: pooled R²
+lets CP "win" by shrinking its own contribution to zero and reproducing pure
+fixed effects — the objective never required CP to add anything. Fix:
+`residual_delta` objective (`R²(FE+CP) − R²(FE-only)`), forcing CP to earn
+its score via genuine incremental value. (Entry: "CP objective corrected to
+residual improvement".)
+
+**May 2.** Transformation-integrity audit (raised: could residual
+optimization + imputation + SURPRISE mode be double-applying transforms?).
+Audit came back clean — no bug found in the active pipeline.
+
+**May 2–25 (~7 days of unattended distributed search) — Problem #2: search
+still gravitating toward FE-imitation.** `residual_delta` v1 produced only
+tiny deltas (+0.002 to +0.005). Optuna kept selecting high rank + heavy
+regularization, which shrinks the CP factor matrices toward zero — a
+subtler recurrence of the same "CP imitates FE" failure mode, this time via
+the search space rather than the objective. Separately, a real (if small)
+**leakage bug** was found and patched same day: the CP-matched Ridge
+baseline's inner-CV alpha selection computed firm means over the whole
+outer-training block instead of inner-training rows only
+(`ridge_structured_cp_matched_zero_filled_ts_cv`, `CP_struct_test_new.py`).
+
+**May 25 — Fix: `residual_delta_v2`.** Added explicit `GAMMA` scaling on the
+CP residual (with `GAMMA=0` as a guaranteed "fall back to FE" floor) and
+per-feature target standardization; tightened the rank range. Relaunched
+across 28 hosts (new parallel-SSH launcher after the serial one proved too
+slow at this scale). All 4 cells showed 3–10x v1's best deltas within 18h.
+
+**May 28 — Architecture split: Ridge-booster track added.** v3 plan
+introduces the parallel `ridge_delta_v3` track (CP predicts *Ridge's*
+residual, i.e. `Ridge_pred + γ·CP_residual`) alongside the FE-residual
+`residual_delta_v3` track. This two-track split (FE-residual CP vs.
+Ridge-booster CP) is the architecture that survives into the paper.
+
+**Jun 19 — Problem #3: booster's headline delta is partly an artifact.**
+Per-fold audit of the top-5 trials per cell found the booster's `+0.005`
+journal headline was fold-1-driven: early outer-training windows lacked real
+out-of-fold Ridge predictions (inner-TSS skipped when `inner_tr_idx.size <
+5`), so CP trained against nothing and contributed literally zero at
+validation in those windows. Fixed (`_compute_ridge_predictions_for_fold`
+returns an `initialized` mask; booster training drops un-initialized rows
+instead of filling with FE). Real Ridge-orthogonal CP signal after the fix:
+`~+0.010` R² (L=2), `~+0.009` R² (L=4).
+
+**Jun 20 — v3 holdout complete on the corrected pipeline.** CP wins in all 4
+locked cells (`residual_delta_v3` / `ridge_delta_v3` × L2/L4). This is the
+architecture, objective, and result set reported in `main_v2.tex`.
+
+**Bottom line for anyone asking "why did the model change":** three
+successive audits (Apr 30 objective, May 25 search-space, Jun 19 estimator)
+each caught the same underlying failure mode — CP finding a way to look
+like it was adding value while actually just reproducing the baseline — at
+a different layer of the pipeline. The 40-feature/499-firm expansion was the
+trigger for re-running the search at scale, not the cause of the bugs
+themselves; the pooled-R² flaw had been latent since January.
+
+---
+
 ## 2026-07-07 (write-up) — PAPER REWRITE v2: prediction section onward, new file
 
 Empirical program closed (entry below); write-up executed per approved plan.
