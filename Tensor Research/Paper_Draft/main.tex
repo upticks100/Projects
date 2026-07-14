@@ -31,7 +31,7 @@
  
 %%\documentclass[sn-nature]{sn-jnl}% Style for submissions to Nature Portfolio journals
 %%\documentclass[sn-basic]{sn-jnl}% Basic Springer Nature Reference Style/Chemistry Reference Style
-\documentclass[sn-mathphys-num]{sn-jnl}% Math and Physical Sciences Numbered Reference Style 
+\documentclass[pdflatex,sn-mathphys-num]{sn-jnl}% Math and Physical Sciences Numbered Reference Style 
 %%\documentclass[sn-mathphys-ay]{sn-jnl}% Math and Physical Sciences Author Year Reference Style
 %%\documentclass[sn-aps]{sn-jnl}% American Physical Society (APS) Reference Style
 %%\documentclass[sn-vancouver,Numbered]{sn-jnl}% Vancouver Reference Style
@@ -413,7 +413,16 @@ Let $\mathbfcal{D} \in \mathbb{R}^{N \times |\mathit{F}^\star| \times |\mathcal{
 
 \begin{figure}
 	\centering
-	\includegraphics[scale=0.7]{./Figures/Fundamentals_Tensor}
+	\begin{tikzpicture}[scale=1.0, every node/.style={font=\small}]
+	% Design tensor cube, drawn in the same style as the model figures
+	\draw[thick, fill=white] (0,0,0) -- (3.6,0,0) -- (3.6,2.4,0) -- (0,2.4,0) -- cycle;
+	\draw[thick, fill=gray!20] (3.6,0,0) -- (4.8,0.96,0) -- (4.8,3.36,0) -- (3.6,2.4,0) -- cycle;
+	\draw[thick, fill=gray!10] (0,2.4,0) -- (3.6,2.4,0) -- (4.8,3.36,0) -- (1.2,3.36,0) -- cycle;
+	\node at (1.8,-0.5,0) {$N$ (firms)};
+	\node[rotate=90] at (-0.5,1.2,0) {$|\mathit{F}^\star|$ (features)};
+	\node[anchor=west] at (4.95,1.65,0) {$|\mathcal{T}|$ (quarters)};
+	\node at (2.4,3.8,0) {$\mathbfcal{D}$};
+	\end{tikzpicture}
 	\caption[Schematic of a third-order market fundamentals design tensor.]{Schematic of a third-order market fundamentals design tensor.}
 	\label{Fig:Design_Tensor_Fund}
 \end{figure}
@@ -426,7 +435,7 @@ where $\mathbf{s}_r \in \mathbb{R}^N$, $\mathbf{f}_r \in \mathbb{R}^{|\mathit{F}
 
 \begin{figure}
 	\centering
-	\includegraphics[scale=0.25,width=\linewidth]{./Figures/Fundamentals/Relative_Error.eps}
+	\includegraphics[scale=0.25,width=\linewidth]{./Figures/Fundamentals/Relative_Error.pdf}
 	\caption[Plot of the relative error of polyadic decomposition for market fundamentals design tensor.]{Plot of the relative error of polyadic decomposition of ${\mathbfcal{D}}$ for different values of $R$.}	
 	\label{fig:Error_Polyadic}
 \end{figure}

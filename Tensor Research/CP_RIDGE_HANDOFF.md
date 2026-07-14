@@ -1,15 +1,65 @@
 # CP vs Fixed-Effects Ridge Prediction Handoff
 
-Date: 2026-04-30 (initial), 2026-07-07 (latest addendum)
+Date: 2026-04-30 (initial), 2026-07-07 (prior addenda), **2026-07-14 (current)**
 Project root: `/student/mcnama53/Projects/Tensor Research`
-Primary log: `RESEARCH_LOG.md`
+Primary readable history: `MODEL_HISTORY.md` (send this, not the full log)
+Full audit trail: `RESEARCH_LOG.md`
 Current prediction code: `Code for paper/prediction_new/`
-Stale paper narrative: `Paper_Draft/main.tex`
+**Active paper draft:** `Paper_Draft/main_v2.tex` / `main_v2.pdf`
+Stale paper narrative: `Paper_Draft/main.tex` (historical only — do not edit)
 
-## 2026-07-07 WHY THE MODEL TYPE CHANGED (consolidated, read before the historical sections)
+---
 
-Full detail in `RESEARCH_LOG.md`, entry "CONSOLIDATED: full architecture
-history, Pure_CP → FE+Ridge+CP booster" (2026-07-07 evening). Short version:
+## 2026-07-14 CURRENT STATUS (READ THIS FIRST)
+
+### Paper
+`main_v2.tex` is the draft to share. Relative to `main.tex`:
+
+- Prediction section rewritten as **baseline + CP booster** (FE or ridge),
+  selected on incremental \(\Delta R^2\), not pooled \(R^2\).
+- Old headline table (CP beats ridge by up to +0.028) is a **mirage** —
+  see `MODEL_HISTORY.md` Phase 2. Honest holdout: FE cells ~+0.043–0.048;
+  ridge cells ~+0.011–0.019; transfer to ~498 firms preserves the sign.
+- Economic arc locked in the draft:
+  - **Size** of CP revision → post-announcement vol in mega-caps, **subsumed by ATM IV**
+  - **Sign** / cash-flow drift (veers) → HY CDS tightening ~**6.5 bp per 1 SD of
+    cash-flow drift per quarter**, 4/4 frozen setups; IG CDS clean null
+- FE defined explicitly as firm–feature training-window means \(\mu_{ij}\)
+- Dual corresponding authors (Masoud first, Bryan second); no “Contributing author” label
+- Prose readability pass; Hadamard/low-mem ALS solver detail **removed from the paper**
+  (still in code; algebraically equivalent)
+- Float placement: soft `\FloatBarrier` at major sections only (no `\clearpage` spam)
+
+### One-line ELI5 for coauthors
+Firms moving away from what the tensor expects → credit signal (HY CDS).
+How hard the tensor revises the baseline → vol signal, already in options IV.
+
+### Where to read what
+| Need | File |
+|---|---|
+| Why the model changed (readable) | `MODEL_HISTORY.md` |
+| Day-by-day / numbers | `RESEARCH_LOG.md` |
+| Paper | `Paper_Draft/main_v2.pdf` |
+| Operational prediction code | `Code for paper/prediction_new/` |
+
+### Empirics still locked (do not retune without a new pre-registration)
+- Four frozen setups: FE vs ridge × \(L\in\{2,4\}\); FEATURE_TARGET_SCALE on,
+  FEATURE_X_SCALE off; USE_RMS on except residual \(L=4\) False
+- Holdout / transfer / HY CDS / H1 DD numbers as in `main_v2` tables
+- HY CDS: **4/4** cells (not 3/4 — older notes were wrong)
+
+### MFI/FCIX
+Macro exhibits in `main_v2` use the clean 40-feature rebuild (earlier handoff
+“polluted April v1 / provisional” caveat is **obsolete** for the current draft).
+
+### Auth / backup
+Push target remains github.com/upticks100/Projects (licensed caches untracked).
+
+---
+
+## 2026-07-07 WHY THE MODEL TYPE CHANGED (consolidated — detail in MODEL_HISTORY)
+
+Full readable narrative: `MODEL_HISTORY.md`. Short version:
 
 The original (Jan 2026, pre-log) design was Pure CP + fixed effects on
 `N=49`/`F=24`, selected by pooled R², benchmarked against ridge — this is
@@ -38,11 +88,11 @@ survives into `main_v2.tex`, validated on the Jun 20 v3 holdout (CP wins all
 mechanically — it triggered the rerun that surfaced a pooled-R² flaw latent
 since January.**
 
-## 2026-07-06 SUPERSEDING ADDENDUM (READ THIS FIRST for current operational status — everything below is historical)
+## 2026-07-06 SUPERSEDING ADDENDUM (historical operational snapshot — superseded by 2026-07-14 above)
 
 **The section titled "CURRENT EXECUTION PLAN (Authoritative)" further down is the
 APRIL state and is NO LONGER AUTHORITATIVE** (external audit Finding 5). It is kept
-for provenance only. The project state as of 2026-07-06:
+for provenance only. Snapshot as of 2026-07-06/07 (still true unless noted):
 
 1. **Part 1 is final and forward-validated.** CP/booster beats an alpha-tuned Ridge
    on OOS next-quarter fundamentals across all 4 locked cells (ridge_delta_v3 /
@@ -57,30 +107,14 @@ for provenance only. The project state as of 2026-07-06:
    subsumes it everywhere (ivctrl survivors 0/29/13/9 of 80; the ridge-L4 29 does
    not replicate) → "beats lagged vol, subsumed by IV"; no straddle alpha (VRP
    mechanics only). OptionMetrics ATM 30d IV is wired into the builder (pre_iv).
-3. **Veer anomaly first look (50 firms) done** (`veer_anomaly_experiment.py`):
-   drift_cashflow→ΔDD replicates in all 4 cells (FM + partial-IC); veers add OOS
-   ΔR²≈+0.03 for ΔIV in all cells; veer_earnings→ΔP/E is a mechanical denominator
-   artifact (do not headline); error-clustering null at 50 names.
-4. **MFI/FCIX caveat (audit Finding 1):** the paper's macro exhibits were built
-   from the polluted April v1 tensor (39 feats, 12 structurally empty). Result is
-   PROVISIONAL pending the v2/40 rebuild (in flight, `rebuild_mfi_tensor_v2.py`).
-   The 2026-06-30 log note claiming "FEATURE_SPECS is 39 now" is WRONG (corrected
-   in log; live spec = 40).
-5. **Backup executed 2026-07-06:** logs, handoff, prediction_new code, all Optuna
-   journals, result summaries pushed to github.com/upticks100/Projects (licensed
-   caches untracked; auth via passphrase-less ~/.ssh/id_ed25519_github).
-6. **499-firm scale-up: DONE (2026-07-07, log entry "2026-07-07")**. Transfer
-   check PASS 4/4 (CP delta positive at 498 firms; residual-cell edge ~2.5x
-   smaller than at 50). Pre-registered verdicts: H1 drift_cashflow→ΔDD slope
-   ≈+0.020 in all 4 cells, confirmed p<0.05 in both residual cells; H2
-   veers→ΔIV formally positive 3/4 but ΔR²≈+0.003 — economically negligible,
-   folded into the IV-subsumption narrative. Error clustering null at 499.
-   New exploratory credit candidates: veer_leverage→ΔDD (ridge cells),
-   veer_investment→ΔDD (residual cells). NOTE: refits used the exact-math
-   low-memory CP fitter (`cp_regressor_lowmem.py`, validated equivalent;
-   stock OOMs at 498 firms) — and CP-ALS predictions were found to be
-   fp-chaotic across BLAS thread counts (~±0.003 R² fitter noise; deltas
-   unaffected). Results: `prediction_new/results/v3_holdout_499_20260706/`.
+3. **Veer anomaly + HY CDS (2026-07-07):** H1 drift_cashflow→ΔDD confirmed;
+   H2 veers→ΔIV formally positive but economically negligible; **H-HY
+   drift_cashflow→Δlog(CDS) confirmed 4/4** (~−6.5 bp per 1 SD cash-flow drift).
+4. **MFI/FCIX:** rebuilt on clean 40-feature tensor for `main_v2` (July write-up).
+5. **499-firm scale-up: DONE.** Transfer PASS 4/4. Low-memory CP fitter used at
+   scale (`cp_regressor_lowmem.py`); not discussed in the paper body.
+6. **Backup:** logs, handoff, prediction_new code, Optuna journals, result
+   summaries → github.com/upticks100/Projects (licensed caches untracked).
 
 Master ranked idea list + anomaly catalog: top of `RESEARCH_LOG.md`.
 

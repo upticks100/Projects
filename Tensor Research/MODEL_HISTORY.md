@@ -35,8 +35,14 @@ and, once fixed, unlocked everything that makes the paper interesting now
 
 ## Phase 0 — Original design (Jan 25–26, 2026, pre-dates the research log)
 
+**FE, defined once:** throughout this document and the paper, *firm--feature
+fixed effects* (FE) means the mask-aware training-window mean \(\mu_{ij}\) for
+each firm \(i\) and Compustat feature \(j\) — not firm-only dummies, not time
+FE, and not a fitted LSDV panel regression. CP then fits residuals after that
+mean (or after ridge, which itself includes the same FE).
+
 **What we built:** `Pure_CP_Structured.py` — low-rank CP tensor regression
-with firm-by-feature fixed effects (FE) subtracted first, RMS normalization,
+with firm-by-feature FE subtracted first, RMS normalization,
 optionally combined with a per-feature ridge baseline for comparison.
 Selection objective was **pooled R²** (just the overall $R^2$ of the fitted
 model, no comparison built into the score itself).
@@ -260,7 +266,8 @@ that prices react to:
   (ΔR²≈0.003).
 - **HY/crossover CDS:** re-ran the H1-style test
   (`drift_cashflow → Δlog(CDS spread)`) on the high-yield universe —
-  **confirmed in 3/4 cells**, ~−6.5bp per 1 SD, the strongest and most
+  **confirmed in all 4 cells**, ~−6.5bp of CDS tightening per 1 SD of
+  cash-flow drift (per quarter), the strongest and most
   economically interpretable result in the paper. A pre-registered options
   tradeability test at HY found partial, architecture-dependent straddle
   alpha (2/4 cells, L4-only) — reported as a subordinate, not headline, result.
@@ -271,7 +278,7 @@ that prices react to:
 
 `main_v2.tex` was written to replace everything from the prediction section
 onward with the validated Phase 6–8 architecture and results, while leaving
-Masoud's MFI/pre-prediction sections untouched except for exhibit updates
+the MFI/pre-prediction sections largely in place except for exhibit updates
 (feature count, Tucker error, MFI figures regenerated on the clean 40-feature
 data). `main.tex` is left as-is / historical.
 
