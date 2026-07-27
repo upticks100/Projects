@@ -12,16 +12,30 @@ Contents: 191 tracked source/configuration/documentation/test files, represented
 
 ## Incremental source update
 
-Commit `900e1e047705fe75dca9fe02a68e6b48f3b06b71` is preserved as:
+Commit `900e1e047705fe75dca9fe02a68e6b48f3b06b71` is preserved in two forms:
 
 - `microstructure-veers-source-900e1e0.patch`
-- `microstructure-veers-source-900e1e0.patch.sha256`
+- `microstructure-veers-900e1e0.bundle.b64`
 
 Patch SHA-256:
 
 `7f03b2de69b1af669ca0e8a61af6f9a168a33ecdb103376e350f492d397a6b6e`
 
-The patch is an exact `git format-patch` against parent commit `f348607ef1af614cbd1dff32a0665da668654b2d`. It contains only shareable source, configuration, tests, and the research log. Apply it after extracting the base archive:
+Decoded bundle SHA-256:
+
+`972e422cd3ba9bb6a6e1f806faa0c4be61d1f3d83bdd41d6afa12ceea571e8c0`
+
+The patch is an exact `git format-patch` against parent commit `f348607ef1af614cbd1dff32a0665da668654b2d`. The bundle preserves the exact Git commit object and is the preferred update method for an existing checkout at that parent. Both contain only shareable source, configuration, tests, and the research log.
+
+Apply the exact bundle on macOS:
+
+```bash
+base64 -D -i microstructure-veers-900e1e0.bundle.b64 -o microstructure-veers-900e1e0.bundle
+git fetch microstructure-veers-900e1e0.bundle codex/intraday-liquidity-veer
+git merge --ff-only FETCH_HEAD
+```
+
+Apply the source patch after extracting the base archive:
 
 ```bash
 cd microstructure-veers
