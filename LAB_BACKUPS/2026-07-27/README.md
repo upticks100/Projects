@@ -10,7 +10,26 @@ Decoded archive SHA-256:
 
 Contents: 191 tracked source/configuration/documentation/test files, represented by 210 tar members under `microstructure-veers/`. Raw WRDS data, credentials, caches, runtime outputs, and untracked files are excluded.
 
-Restore on macOS:
+## Incremental source update
+
+Commit `900e1e0a21d5ff738736c3b9f2575285139038dc` is preserved as:
+
+- `microstructure-veers-source-900e1e0.patch`
+- `microstructure-veers-source-900e1e0.patch.sha256`
+
+Patch SHA-256:
+
+`7f03b2de69b1af669ca0e8a61af6f9a168a33ecdb103376e350f492d397a6b6e`
+
+The patch is an exact `git format-patch` against parent commit `f348607ef1af614cbd1dff32a0665da668654b2d`. It contains only shareable source, configuration, tests, and the research log. Apply it after extracting the base archive:
+
+```bash
+cd microstructure-veers
+git init
+git apply ../microstructure-veers-source-900e1e0.patch
+```
+
+## Restore base archive on macOS
 
 ```bash
 base64 -D -i microstructure-veers-source-f348607.tar.gz.b64 -o microstructure-veers-source-f348607.tar.gz
@@ -18,7 +37,7 @@ shasum -a 256 microstructure-veers-source-f348607.tar.gz
 tar -xzf microstructure-veers-source-f348607.tar.gz
 ```
 
-Restore on Linux:
+## Restore base archive on Linux
 
 ```bash
 base64 -d microstructure-veers-source-f348607.tar.gz.b64 > microstructure-veers-source-f348607.tar.gz
