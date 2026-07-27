@@ -12,7 +12,7 @@ Contents: 191 tracked source/configuration/documentation/test files, represented
 
 ## Incremental source update
 
-Commit `900e1e0a21d5ff738736c3b9f2575285139038dc` is preserved as:
+Commit `900e1e047705fe75dca9fe02a68e6b48f3b06b71` is preserved as:
 
 - `microstructure-veers-source-900e1e0.patch`
 - `microstructure-veers-source-900e1e0.patch.sha256`
