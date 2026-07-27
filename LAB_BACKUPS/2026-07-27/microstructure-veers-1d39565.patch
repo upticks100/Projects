@@ -1,0 +1,460 @@
+diff --git a/configs/forecast_tournament.yaml b/configs/forecast_tournament.yaml
+index cc4bd84..7ad9f47 100644
+--- a/configs/forecast_tournament.yaml
++++ b/configs/forecast_tournament.yaml
+@@ -231,7 +231,7 @@ model_families:
+     admission_status: pending_convergence_pilot
+     input_ranks: [1, 2, 3, 4]
+     output_ranks: [1, 2, 3, 4]
+-    regularization: [0.01, 0.1, 1.0, 10.0]
++    regularization: [0.0, 0.001, 0.01, 0.1, 1.0, 10.0]
+     iteration_caps: [250, 500, 1000, 2000]
+     initializations: [svd, random]
+     convergence_tolerance: 1.0e-6
+diff --git a/docs/COMPUTE_INFRA.md b/docs/COMPUTE_INFRA.md
+index 5197bec..3006279 100644
+--- a/docs/COMPUTE_INFRA.md
++++ b/docs/COMPUTE_INFRA.md
+@@ -114,9 +114,9 @@ representations. Regularization heads reuse each structural representation,
+ and the representation cache is evicted before the next structural group.
+ 
+ The full development manifest contains 45 family-fold tasks. It accounts for
+-2,029 declared family trials per outer fold plus ten reference-Ridge trials in
+-each of the CP and Tucker tasks: 2,049 checkpointed trial records per fold and
+-6,147 across development. Outer prediction arrays are approximately 20 MiB
++2,285 declared family trials per outer fold plus ten reference-Ridge trials in
++each of the CP and Tucker tasks: 2,305 checkpointed trial records per fold and
++6,915 across development. Outer prediction arrays are approximately 20 MiB
+ uncompressed for deterministic tasks and 33 MiB for three-seed tasks, or about
+ 1.1 GiB across all 45 tasks before NPZ compression. Consolidated gzip search
+ records, diagnostics, ledgers, and temporary restart checkpoints are expected
+@@ -140,8 +140,21 @@ The first `dev-2020` resource pilot measured about 11 minutes for factor Ridge
+ and about 62 minutes for the former 180-trial CP grid. The expanded 360-trial
+ CP grid should therefore be budgeted for at least two hours. The former
+ 256-trial Tucker grid finished in about 14 minutes, but the rank-aware output
+-score filter and four-cap search require a fresh measurement. Gradient
+-boosting completed 144 of 864 trials in about 3.3 hours, implying roughly
++score filter and four-cap search required a fresh measurement. The first
++rank-aware 512-trial Tucker pilot then accounted for 160 valid and 352 failed
++configurations. Every failure was a convergence exclusion: 288 first failed at
++seed 7, 16 at seed 42, and 48 at seed 73. The minimum inner loss declined from
++0.610067 at regularization 10 to 0.609033 at the declared lower boundary 0.01,
++so outer validation correctly remained unopened with
++`SEARCH_EXPANSION_REQUIRED`. This is a boundary remediation, not a Tucker
++rejection. The versioned follow-up grid adds the natural nonnegative endpoint
++0 and the interior value 0.001, producing 768 candidate trials while leaving
++the 1,536 structural representations unchanged. A zero winner is at the
++mathematical endpoint; 0.001 and 0.01 are interior choices. Ranks,
++initializations, and iteration caps are unchanged. Because resource approval
++is exact-manifest bound, all four resource-pilot tasks must be rerun and
++published under the fresh manifest before broader fan-out. Gradient boosting
++completed 144 of 864 trials in about 3.3 hours, implying roughly
+ 20 hours at the observed pace. These are development-only pilot measurements,
+ not task time limits; detached workers may run for days when the manifest
+ remains scientifically admissible.
+@@ -270,7 +283,9 @@ PYTHONPATH=src "$PYTHON" scripts/launch_distributed.py \
+   --experiment-id EXPERIMENT --stage development \
+   --task-ids stage-a-dev-2020-factor-ridge,stage-a-dev-2020-gradient-boosting,stage-a-dev-2020-cp,stage-a-dev-2020-tucker
+ PYTHONPATH=src "$PYTHON" scripts/check_distributed_status.py \
+-  --manifest artifacts/manifests/EXPERIMENT.json --progress
++  --manifest artifacts/manifests/EXPERIMENT.json \
++  --task-ids stage-a-dev-2020-factor-ridge,stage-a-dev-2020-gradient-boosting,stage-a-dev-2020-cp,stage-a-dev-2020-tucker \
++  --progress --read-only
+ PYTHONPATH=src "$PYTHON" scripts/approve_stage_a_resource_pilot.py \
+   --manifest artifacts/manifests/EXPERIMENT.json \
+   --experiment-id EXPERIMENT --reviewer REVIEWER \
+@@ -299,6 +314,12 @@ PYTHONPATH=src "$PYTHON" scripts/build_intraday_report.py \
+   --stage-a-manifest artifacts/manifests/EXPERIMENT.json
+ ```
+ 
++`--task-ids` constrains inspection to an exact manifest subset. `--read-only`
++validates completion markers, exact recorded PIDs, and checkpoint progress
++without rewriting task states; omit it when reconciliation should be
++persisted. This bounded mode is appropriate for scheduled resource-pilot
++monitoring.
++
+ Stage B is a single controller-side evaluation, not a distributed search. It
+ requires the checksum-bound Stage A aggregate marker, rehashes every Stage A
+ task marker and artifact, recomputes the forecast-only family decision, and
+diff --git a/docs/MODEL_EVALUATION_SOP.md b/docs/MODEL_EVALUATION_SOP.md
+index 839918b..e05534e 100644
+--- a/docs/MODEL_EVALUATION_SOP.md
++++ b/docs/MODEL_EVALUATION_SOP.md
+@@ -118,7 +118,8 @@ least two of three folds and across at least half of the fold-target cells. CP
+ or Tucker must additionally have a positive mean incremental MSE gain over its
+ matched reference Ridge and a positive gain in at least two of three folds.
+ Search-boundary winners trigger an expanded, versioned Stage-A search before
+-any economic evaluation.
++any economic evaluation. A nonnegative regularization parameter is treated as
++having a natural lower endpoint only when the declared grid includes zero.
+ 
+ Regime diagnostics are descriptive and never select the forecast. The primary
+ regime is the cross-sectional median current log realized midpoint volatility;
+diff --git a/scripts/check_distributed_status.py b/scripts/check_distributed_status.py
+index 78b9c8a..65107ac 100644
+--- a/scripts/check_distributed_status.py
++++ b/scripts/check_distributed_status.py
+@@ -1,5 +1,5 @@
+ #!/usr/bin/env python3
+-"""Reconcile task state with completion markers and exact remote PIDs."""
++"""Reconcile or read task state using completion markers and exact remote PIDs."""
+ from __future__ import annotations
+ 
+ import argparse
+@@ -27,6 +27,22 @@ from microstructure_veer.tasks import (
+ ROOT = Path(__file__).resolve().parents[1]
+ 
+ 
++def _select_tasks(tasks: list[TaskSpec], requested: str) -> list[TaskSpec]:
++    if requested.strip().lower() == "all":
++        return list(tasks)
++    task_ids = tuple(
++        value.strip() for value in requested.split(",") if value.strip()
++    )
++    if not task_ids or len(task_ids) != len(set(task_ids)):
++        raise SafetyError("--task-ids must name a nonempty unique task subset")
++    available = {task.task_id for task in tasks}
++    unknown = set(task_ids).difference(available)
++    if unknown:
++        raise SafetyError(f"--task-ids contains unknown tasks: {sorted(unknown)}")
++    selected = set(task_ids)
++    return [task for task in tasks if task.task_id in selected]
++
++
+ def _lazy_agent_environment(
+     environment: dict[str, str] | None,
+     prior_error: str | None,
+@@ -158,10 +174,23 @@ def main() -> int:
+         action="store_true",
+         help="show completed atomic trial checkpoints for incomplete tasks",
+     )
++    parser.add_argument(
++        "--task-ids",
++        default="all",
++        help="comma-separated exact task IDs to inspect, or all",
++    )
++    parser.add_argument(
++        "--read-only",
++        action="store_true",
++        help="validate and report reconciled state without rewriting state files",
++    )
+     args = parser.parse_args()
+     paths = ProjectPaths.from_yaml(args.project_config)
+     paths.validate_runtime(ROOT)
+-    tasks = load_tasks(args.manifest, paths.project_root)
++    tasks = _select_tasks(
++        load_tasks(args.manifest, paths.project_root),
++        args.task_ids,
++    )
+     environment: dict[str, str] | None = None
+     environment_error: str | None = None
+     counts: Counter[str] = Counter()
+@@ -257,7 +286,8 @@ def main() -> int:
+                             ),
+                         }
+                     )
+-        write_state(state_path, state)
++        if not args.read_only:
++            write_state(state_path, state)
+         counts[state["state"]] += 1
+         if args.progress and state["state"] != "COMPLETED":
+             progress = _checkpoint_progress(task)
+diff --git a/src/microstructure_veer/reporting/intraday.py b/src/microstructure_veer/reporting/intraday.py
+index edbe0db..530cd0b 100644
+--- a/src/microstructure_veer/reporting/intraday.py
++++ b/src/microstructure_veer/reporting/intraday.py
+@@ -9,6 +9,7 @@ import os
+ import platform
+ from dataclasses import dataclass
+ from datetime import datetime, timezone
++from importlib.metadata import version
+ from pathlib import Path
+ from typing import Any, Iterable, Mapping
+ 
+@@ -102,6 +103,9 @@ REQUIRED_REPORT_TABLE_ROLES: frozenset[str] = frozenset(
+         "table_protected_forecast",
+     }
+ )
++REPORT_RUNTIME_VERSION_KEYS: frozenset[str] = frozenset(
++    {"python", "matplotlib", "numpy", "pandas", "tabulate"}
++)
+ 
+ 
+ @dataclass(frozen=True)
+@@ -3339,6 +3343,7 @@ def validate_report_publication(
+             "report_runtime_versions": manifest.get("report_runtime_versions"),
+         }
+     )
++    report_runtime_versions = manifest.get("report_runtime_versions")
+     if (
+         marker_path.name != "COMPLETED.json"
+         or manifest_path != marker_path.with_name("report_manifest.json")
+@@ -3355,8 +3360,12 @@ def validate_report_publication(
+         or manifest.get("schema_version") != 1
+         or manifest.get("publication_kind") != "intraday_evidence_report"
+         or manifest.get("input_fingerprint") != expected_fingerprint
+-        or not isinstance(manifest.get("report_runtime_versions"), dict)
+-        or not manifest.get("report_runtime_versions")
++        or not isinstance(report_runtime_versions, dict)
++        or set(report_runtime_versions) != REPORT_RUNTIME_VERSION_KEYS
++        or any(
++            not isinstance(value, str) or not value
++            for value in report_runtime_versions.values()
++        )
+     ):
+         raise SafetyError("intraday report marker does not bind its manifest")
+     roles: set[str] = set()
+@@ -3513,6 +3522,7 @@ def build_intraday_report(
+         "matplotlib": matplotlib.__version__,
+         "numpy": np.__version__,
+         "pandas": pd.__version__,
++        "tabulate": version("tabulate"),
+     }
+     input_fingerprint = _canonical_sha256(
+         {
+diff --git a/src/microstructure_veer/tournament/contracts.py b/src/microstructure_veer/tournament/contracts.py
+index 572a540..9d77246 100644
+--- a/src/microstructure_veer/tournament/contracts.py
++++ b/src/microstructure_veer/tournament/contracts.py
+@@ -418,6 +418,27 @@ class TournamentProtocol:
+             if self.trial_budget(family) < 100:
+                 raise SafetyError(f"{family} requires at least 100 configurations")
+             tensor_space = self.family_space(family)
++            regularization = tuple(
++                float(value) for value in tensor_space.get("regularization", [])
++            )
++            if (
++                len(regularization) < 3
++                or not all(math.isfinite(value) for value in regularization)
++                or regularization != tuple(sorted(set(regularization)))
++                or regularization[0] < 0.0
++            ):
++                raise SafetyError(
++                    f"{family} regularization must be finite, nonnegative, "
++                    "sorted, and unique"
++                )
++            if family == "tucker" and (
++                regularization[0] != 0.0
++                or not any(0.0 < value < 0.01 for value in regularization)
++            ):
++                raise SafetyError(
++                    "Tucker regularization must include zero and an interior "
++                    "sub-0.01 value"
++                )
+             caps = tuple(int(value) for value in tensor_space.get("iteration_caps", []))
+             if len(caps) < 2 or caps != tuple(sorted(set(caps))) or caps[0] < 1:
+                 raise SafetyError(
+diff --git a/src/microstructure_veer/tournament/runner.py b/src/microstructure_veer/tournament/runner.py
+index 68a4778..f0fceef 100644
+--- a/src/microstructure_veer/tournament/runner.py
++++ b/src/microstructure_veer/tournament/runner.py
+@@ -651,6 +651,7 @@ _NATURAL_LOWER_BOUNDS = {
+     "lag_count": 1,
+     "output_rank": 1,
+     "rank": 1,
++    "regularization": 0.0,
+ }
+ 
+ 
+diff --git a/tests/test_controller_locks.py b/tests/test_controller_locks.py
+index 8264269..d9e4ded 100644
+--- a/tests/test_controller_locks.py
++++ b/tests/test_controller_locks.py
+@@ -18,6 +18,7 @@ from scripts.check_distributed_status import (
+     _checkpoint_progress,
+     _lazy_agent_environment,
+     _remote_process_status,
++    _select_tasks as _select_status_tasks,
+ )
+ from scripts.freeze_intraday_candidate import _execution_lock as freeze_lock
+ from scripts.launch_distributed import (
+@@ -111,6 +112,98 @@ def test_distributed_launch_rejects_unknown_or_duplicate_task_ids() -> None:
+         )
+ 
+ 
++def test_distributed_status_selects_exact_manifest_task_ids() -> None:
++    tasks = [
++        SimpleNamespace(task_id="stage-a-dev-2020-cp"),
++        SimpleNamespace(task_id="stage-a-dev-2020-tucker"),
++        SimpleNamespace(task_id="stage-a-dev-2021-cp"),
++    ]
++
++    selected = _select_status_tasks(
++        tasks,
++        "stage-a-dev-2020-tucker,stage-a-dev-2020-cp",
++    )
++
++    assert [task.task_id for task in selected] == [
++        "stage-a-dev-2020-cp",
++        "stage-a-dev-2020-tucker",
++    ]
++
++
++def test_distributed_status_rejects_unknown_or_duplicate_task_ids() -> None:
++    tasks = [SimpleNamespace(task_id="stage-a-dev-2020-cp")]
++
++    with pytest.raises(SafetyError, match="unknown tasks"):
++        _select_status_tasks(tasks, "stage-a-dev-2020-tucker")
++    with pytest.raises(SafetyError, match="unique task subset"):
++        _select_status_tasks(
++            tasks,
++            "stage-a-dev-2020-cp,stage-a-dev-2020-cp",
++        )
++
++
++def test_distributed_status_read_only_filters_without_writing(
++    tmp_path: Path,
++    monkeypatch,
++    capsys,
++) -> None:
++    selected_state = tmp_path / "selected.json"
++    selected_state.write_text(
++        json.dumps({"state": "PENDING"}),
++        encoding="utf-8",
++    )
++    selected = SimpleNamespace(
++        task_id="selected",
++        state_path=str(selected_state),
++        completion_marker=str(tmp_path / "selected-complete.json"),
++        output_path=str(tmp_path / "selected-result.json"),
++    )
++    unselected = SimpleNamespace(
++        task_id="unselected",
++        state_path=str(tmp_path / "missing-unselected.json"),
++        completion_marker=str(tmp_path / "unselected-complete.json"),
++        output_path=str(tmp_path / "unselected-result.json"),
++    )
++    paths = SimpleNamespace(
++        project_root=tmp_path,
++        validate_runtime=lambda root: None,
++    )
++    monkeypatch.setattr(
++        status_script.ProjectPaths,
++        "from_yaml",
++        staticmethod(lambda path: paths),
++    )
++    monkeypatch.setattr(
++        status_script,
++        "load_tasks",
++        lambda manifest, project_root: [selected, unselected],
++    )
++    monkeypatch.setattr(
++        status_script,
++        "validate_task_state",
++        lambda task, state: None,
++    )
++
++    def fail_write(*args, **kwargs):
++        raise AssertionError("read-only status inspection rewrote task state")
++
++    monkeypatch.setattr(status_script, "write_state", fail_write)
++    monkeypatch.setattr(
++        "sys.argv",
++        [
++            "check_distributed_status.py",
++            "--manifest",
++            str(tmp_path / "manifest.json"),
++            "--task-ids",
++            "selected",
++            "--read-only",
++        ],
++    )
++
++    assert status_script.main() == 0
++    assert capsys.readouterr().out == "PENDING=1\n"
++
++
+ def test_launch_handshake_preserves_terminal_worker_state() -> None:
+     failed = {
+         "state": "FAILED",
+diff --git a/tests/test_intraday_reporting.py b/tests/test_intraday_reporting.py
+index b4b5e28..27fff40 100644
+--- a/tests/test_intraday_reporting.py
++++ b/tests/test_intraday_reporting.py
+@@ -1,4 +1,5 @@
+ import json
++from importlib.metadata import version
+ from pathlib import Path
+ 
+ import numpy as np
+@@ -552,6 +553,7 @@ def test_intraday_report_is_stage_labelled_and_idempotent(tmp_path: Path) -> Non
+         project_root=paths.project_root,
+     )
+     assert marker["input_fingerprint"] == manifest["input_fingerprint"]
++    assert manifest["report_runtime_versions"]["tabulate"] == version("tabulate")
+     assert any(item["role"] == "figure_family" for item in manifest["artifacts"])
+     assert any(item["role"] == "figure_search" for item in manifest["artifacts"])
+     assert any(item["role"] == "figure_residual" for item in manifest["artifacts"])
+diff --git a/tests/test_tournament_contract.py b/tests/test_tournament_contract.py
+index f369fc0..4a0eba8 100644
+--- a/tests/test_tournament_contract.py
++++ b/tests/test_tournament_contract.py
+@@ -32,7 +32,7 @@ def test_tournament_protocol_is_hash_stable_and_complete() -> None:
+     assert first.trial_budget("elastic_net") >= 50
+     assert first.trial_budget("gradient_boosting") >= 100
+     assert first.trial_budget("cp") == 360
+-    assert first.trial_budget("tucker") == 512
++    assert first.trial_budget("tucker") == 768
+     assert first.trial_budget("simple_factor") == 12
+     assert first.minimum_valid_trials("elastic_net") == 50
+     assert first.minimum_valid_trials("gradient_boosting") == 100
+@@ -65,6 +65,14 @@ def test_tournament_protocol_is_hash_stable_and_complete() -> None:
+         1000,
+         2000,
+     ]
++    assert first.family_space("tucker")["regularization"] == [
++        0.0,
++        0.001,
++        0.01,
++        0.1,
++        1.0,
++        10.0,
++    ]
+ 
+ 
+ def test_protocol_rejects_protected_data_access(tmp_path: Path) -> None:
+@@ -99,6 +107,24 @@ def test_protocol_rejects_target_ridge_without_natural_endpoint(
+         TournamentProtocol.from_yaml(changed)
+ 
+ 
++def test_protocol_rejects_tucker_without_natural_regularization_endpoint(
++    tmp_path: Path,
++) -> None:
++    payload = yaml.safe_load(PROTOCOL.read_text(encoding="utf-8"))
++    payload["model_families"]["tucker"]["regularization"] = [
++        0.001,
++        0.01,
++        0.1,
++        1.0,
++        10.0,
++    ]
++    changed = tmp_path / "protocol.yaml"
++    changed.write_text(yaml.safe_dump(payload), encoding="utf-8")
++
++    with pytest.raises(SafetyError, match="include zero"):
++        TournamentProtocol.from_yaml(changed)
++
++
+ def test_protocol_order_survives_sorted_yaml_round_trip(tmp_path: Path) -> None:
+     payload = yaml.safe_load(PROTOCOL.read_text(encoding="utf-8"))
+     changed = tmp_path / "protocol.yaml"
+diff --git a/tests/test_tournament_search.py b/tests/test_tournament_search.py
+index f650fa0..cf13b39 100644
+--- a/tests/test_tournament_search.py
++++ b/tests/test_tournament_search.py
+@@ -84,6 +84,15 @@ def test_natural_structural_upper_bounds_do_not_request_impossible_expansion() -
+     ] == "upper"
+ 
+ 
++def test_tucker_regularization_has_a_natural_lower_endpoint_and_interior() -> None:
++    assert selected_boundary_flags(
++        PROTOCOL, "tucker", {"regularization": 0.0}
++    ) == []
++    assert selected_boundary_flags(
++        PROTOCOL, "tucker", {"regularization": 0.001}
++    ) == []
++
++
+ def test_trial_checkpoint_must_match_the_expanded_trial_exactly() -> None:
+     trial = expand_family_trials(PROTOCOL, "persistence")[0]
+     record = {
