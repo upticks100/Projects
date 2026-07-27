@@ -1,0 +1,633 @@
+From 2469f2f3e2a942efaa43c810265d8f9f2847dd3b Mon Sep 17 00:00:00 2001
+From: Bryan <bryan.w.mac@gmail.com>
+Date: Mon, 27 Jul 2026 10:35:10 -0400
+Subject: [PATCH] Stabilize Tucker output score fitting
+
+---
+ configs/forecast_tournament.yaml              |   4 +-
+ docs/COMPUTE_INFRA.md                         |  24 ++-
+ logs/RESEARCH_LOG.md                          |  34 ++++
+ .../tensor_models/tucker_booster.py           | 154 ++++++++++++++----
+ .../tournament/tensor_runner.py               |   8 +
+ tests/test_tensor_runner.py                   |  47 ++++++
+ tests/test_tournament_contract.py             |  23 ++-
+ tests/test_tournament_search.py               |   3 +-
+ tests/test_tucker_booster.py                  |  52 +++++-
+ 9 files changed, 302 insertions(+), 47 deletions(-)
+
+diff --git a/configs/forecast_tournament.yaml b/configs/forecast_tournament.yaml
+index d124906..cc4bd84 100644
+--- a/configs/forecast_tournament.yaml
++++ b/configs/forecast_tournament.yaml
+@@ -222,7 +222,7 @@ model_families:
+     early_stopping: false
+   cp:
+     admission_status: pending_convergence_pilot
+-    ranks: [1, 2, 3, 4, 5]
++    ranks: [1, 2, 3, 4, 5, 6, 8, 10, 12, 16]
+     regularization: [0.001, 0.01, 0.1, 1.0, 10.0, 100.0]
+     iteration_caps: [250, 500, 1000]
+     initializations: [svd, random]
+@@ -232,7 +232,7 @@ model_families:
+     input_ranks: [1, 2, 3, 4]
+     output_ranks: [1, 2, 3, 4]
+     regularization: [0.01, 0.1, 1.0, 10.0]
+-    iteration_caps: [250, 500]
++    iteration_caps: [250, 500, 1000, 2000]
+     initializations: [svd, random]
+     convergence_tolerance: 1.0e-6
+ search_policy:
+diff --git a/docs/COMPUTE_INFRA.md b/docs/COMPUTE_INFRA.md
+index cd5f760..5197bec 100644
+--- a/docs/COMPUTE_INFRA.md
++++ b/docs/COMPUTE_INFRA.md
+@@ -105,18 +105,18 @@ tensor-booster OOF cache contains exactly 1,320 supported samples
+ their validation tensors retain about 218 MiB of tensor payload after the full
+ inner-training splits are released.
+ 
+-The exhaustive CP grid requires 360 inner structural decompositions per task
+-(`5 ranks x 3 caps x 2 initializations x 3 seeds x 4 folds`) plus three selected
+-outer refits. Tucker requires 768 inner representations
+-(`4 input ranks x 4 output ranks x 2 caps x 2 initializations x 3 seeds x
++The exhaustive CP grid requires 720 inner structural decompositions per task
++(`10 ranks x 3 caps x 2 initializations x 3 seeds x 4 folds`) plus three selected
++outer refits. Tucker requires 1,536 inner representations
++(`4 input ranks x 4 output ranks x 4 caps x 2 initializations x 3 seeds x
+ 4 folds`), each with one input and one output decomposition, plus three outer
+ representations. Regularization heads reuse each structural representation,
+ and the representation cache is evicted before the next structural group.
+ 
+ The full development manifest contains 45 family-fold tasks. It accounts for
+-1,593 declared family trials per outer fold plus ten reference-Ridge trials in
+-each of the CP and Tucker tasks: 1,613 checkpointed trial records per fold and
+-4,839 across development. Outer prediction arrays are approximately 20 MiB
++2,029 declared family trials per outer fold plus ten reference-Ridge trials in
++each of the CP and Tucker tasks: 2,049 checkpointed trial records per fold and
++6,147 across development. Outer prediction arrays are approximately 20 MiB
+ uncompressed for deterministic tasks and 33 MiB for three-seed tasks, or about
+ 1.1 GiB across all 45 tasks before NPZ compression. Consolidated gzip search
+ records, diagnostics, ledgers, and temporary restart checkpoints are expected
+@@ -136,6 +136,16 @@ factor-Ridge, PLS, and gradient boosting also reuse one float32 row-history
+ design per fold and lag group. Pooled and target Ridge reuse the corresponding
+ full-lag design.
+ 
++The first `dev-2020` resource pilot measured about 11 minutes for factor Ridge
++and about 62 minutes for the former 180-trial CP grid. The expanded 360-trial
++CP grid should therefore be budgeted for at least two hours. The former
++256-trial Tucker grid finished in about 14 minutes, but the rank-aware output
++score filter and four-cap search require a fresh measurement. Gradient
++boosting completed 144 of 864 trials in about 3.3 hours, implying roughly
++20 hours at the observed pace. These are development-only pilot measurements,
++not task time limits; detached workers may run for days when the manifest
++remains scientifically admissible.
++
+ The largest four-year inner-fold preparation retains approximately 1.1 GiB of
+ float32 tensor payload before masks, targets, and temporary numerical-library
+ workspace. Nested search therefore runs one structural trial group at a time
+diff --git a/logs/RESEARCH_LOG.md b/logs/RESEARCH_LOG.md
+index 6371049..de7a887 100644
+--- a/logs/RESEARCH_LOG.md
++++ b/logs/RESEARCH_LOG.md
+@@ -866,3 +866,37 @@
+   a prespecified high-cap stability comparison; the minimum-valid threshold is
+   unchanged. These remediations use resource/convergence evidence only, not
+   outer tensor forecasts, economics, candidate data, or final-holdout data.
++- Audited the replacement development-only manifest
++  `taq5m-dev-v3-stagea-e3183f4`, bound to source commit
++  `e3183f4e600e2c923f5591b0d8b019269b976b17` and manifest SHA-256
++  `0ef1c72a9d94505fa63b8071095cf5e7b7daf0180623d924fa6464d5098814ff`.
++  Factor Ridge completed 72/72 trials with `OUTER_EVALUATED`; its selected
++  factor count was one, selected alpha was 10, and primary scaled pooled
++  outer R-squared was 0.5935346.
++- CP accounted for all 180 trials, with 150 valid and 30 failed configurations.
++  The selected rank was five at the upper search boundary, so the task
++  correctly returned `SEARCH_EXPANSION_REQUIRED` and did not open outer tensor
++  validation. The matched 500- and 1000-iteration configurations had identical
++  loss, seed loss coefficient of variation was 0.001642, and the selected
++  maximum spatial condition number was about 8,843. The CP rank grid is
++  therefore expanded through ranks 6, 8, 10, 12, and 16 while preserving all
++  prior ranks, regularization values, caps, initializations, seeds, folds, and
++  admission gates.
++- Tucker accounted for all 256 trials, with 64 valid and 192 failed
++  configurations, and correctly returned `INSUFFICIENT_VALID_TRIALS` without
++  opening outer tensor validation. The selected valid configuration had
++  input/output ranks 3/3 and maximum output-score Gram condition about
++  `1.38e20`. Early inner samples had as few as four observed output coordinates
++  for nine latent score dimensions, exposing an underidentified normal-equation
++  solve rather than an economic result. Tucker output scores now use
++  rank-aware least squares, exclude empty, underidentified, and over-threshold
++  training samples separately, and report every exclusion. The iteration-cap
++  grid is expanded to 250, 500, 1000, and 2000, yielding 512 declared
++  configurations while retaining the 100-valid-trial gate.
++- Gradient boosting was stopped through the project worker-control path after
++  144/864 checkpoints because the manifest was already scientifically
++  unapprovable, not because long runtime was disallowed. Its observed pace
++  implied roughly 20 hours for the full task. The corrected manifest will let
++  all four pilots run to terminal evidence even when that takes days. No
++  candidate or final-holdout data, tensor outer forecast, Stage B economic
++  result, or protected outcome informed these changes.
+diff --git a/src/microstructure_veer/tensor_models/tucker_booster.py b/src/microstructure_veer/tensor_models/tucker_booster.py
+index 6635995..db9dd14 100644
+--- a/src/microstructure_veer/tensor_models/tucker_booster.py
++++ b/src/microstructure_veer/tensor_models/tucker_booster.py
+@@ -21,9 +21,21 @@ class TuckerConfig:
+     max_iter: int = 20
+     initialization: str = "svd"
+     tolerance: float = 1.0e-6
++    maximum_output_score_condition_number: float = 1.0e12
+     seed: int = 42
+ 
+ 
++@dataclass(frozen=True)
++class MaskedOutputScores:
++    scores: np.ndarray
++    sample_mask: np.ndarray
++    minimum_observed_coordinates: int
++    maximum_condition_number: float
++    skipped_unobserved_samples: int
++    skipped_underidentified_samples: int
++    skipped_ill_conditioned_samples: int
++
++
+ @dataclass
+ class TuckerBooster:
+     model: Ridge
+@@ -36,9 +48,12 @@ class TuckerBooster:
+     output_ranks: tuple[int, int]
+     input_reconstruction_errors: list[float]
+     output_reconstruction_errors: list[float]
++    output_score_training_samples: int
+     output_score_minimum_observed_coordinates: int
+     output_score_maximum_condition_number: float
+     output_score_skipped_unobserved_samples: int
++    output_score_skipped_underidentified_samples: int
++    output_score_skipped_ill_conditioned_samples: int
+     config: TuckerConfig
+ 
+ 
+@@ -55,9 +70,12 @@ class TuckerRepresentation:
+     output_ranks: tuple[int, int]
+     input_reconstruction_errors: list[float]
+     output_reconstruction_errors: list[float]
++    output_score_training_samples: int
+     output_score_minimum_observed_coordinates: int
+     output_score_maximum_condition_number: float
+     output_score_skipped_unobserved_samples: int
++    output_score_skipped_underidentified_samples: int
++    output_score_skipped_ill_conditioned_samples: int
+     config: TuckerConfig
+ 
+ 
+@@ -133,7 +151,15 @@ def _masked_output_scores(
+     target: np.ndarray,
+     mask: np.ndarray,
+     output_factors: list[np.ndarray],
+-) -> tuple[np.ndarray, int, float]:
++    maximum_condition_number: float,
++) -> MaskedOutputScores:
++    if target.shape != mask.shape or target.ndim != 3:
++        raise ValueError("Tucker output target and mask must align")
++    if (
++        not np.isfinite(maximum_condition_number)
++        or maximum_condition_number < 1.0
++    ):
++        raise ValueError("Tucker output score condition limit must be finite and >= 1")
+     firm_factor, target_factor = output_factors
+     basis = np.einsum(
+         "ia,jb->ijab",
+@@ -141,29 +167,76 @@ def _masked_output_scores(
+         target_factor,
+         optimize=True,
+     ).reshape(target.shape[1] * target.shape[2], -1)
++    if not np.all(np.isfinite(basis)):
++        raise ValueError("Tucker output basis is nonfinite")
+     flattened_target = np.asarray(target, dtype=float).reshape(len(target), -1)
+     flattened_mask = np.asarray(mask, dtype=bool).reshape(len(target), -1)
+-    scores = np.empty((len(target), basis.shape[1]), dtype=float)
+-    minimum_observed = flattened_mask.shape[1]
++    latent_dimension = basis.shape[1]
++    score_rows: list[np.ndarray] = []
++    sample_mask = np.zeros(len(target), dtype=bool)
++    minimum_observed: int | None = None
+     maximum_condition = 0.0
++    skipped_unobserved = 0
++    skipped_underidentified = 0
++    skipped_ill_conditioned = 0
+     for sample in range(len(target)):
+         selected = flattened_mask[sample]
+         count = int(selected.sum())
+         if count < 1:
+-            raise ValueError("Tucker output score has no observed target coordinate")
++            skipped_unobserved += 1
++            continue
++        if count < latent_dimension:
++            skipped_underidentified += 1
++            continue
+         selected_basis = basis[selected]
+-        gram = selected_basis.T @ selected_basis
+-        condition = float(np.linalg.cond(gram))
+-        ridge = np.finfo(float).eps * max(1.0, float(np.trace(gram)))
+-        scores[sample] = np.linalg.solve(
+-            gram + ridge * np.eye(gram.shape[0]),
+-            selected_basis.T @ flattened_target[sample, selected],
++        singular_values = np.linalg.svd(selected_basis, compute_uv=False)
++        if not np.all(np.isfinite(singular_values)):
++            raise ValueError("Tucker output score singular values are nonfinite")
++        largest = float(singular_values[0])
++        smallest = float(singular_values[-1])
++        rank_tolerance = (
++            np.finfo(float).eps * max(selected_basis.shape) * largest
++        )
++        if largest <= 0.0 or smallest <= rank_tolerance:
++            skipped_underidentified += 1
++            continue
++        basis_condition = largest / smallest
++        condition = (
++            basis_condition * basis_condition
++            if basis_condition <= np.sqrt(np.finfo(float).max)
++            else float("inf")
++        )
++        if not np.isfinite(condition) or condition > maximum_condition_number:
++            skipped_ill_conditioned += 1
++            continue
++        score, _, rank, _ = np.linalg.lstsq(
++            selected_basis,
++            flattened_target[sample, selected],
++            rcond=None,
++        )
++        if rank < latent_dimension:
++            skipped_underidentified += 1
++            continue
++        if not np.all(np.isfinite(score)):
++            raise ValueError("Tucker masked output score is nonfinite")
++        score_rows.append(score)
++        sample_mask[sample] = True
++        minimum_observed = (
++            count if minimum_observed is None else min(minimum_observed, count)
+         )
+-        minimum_observed = min(minimum_observed, count)
+         maximum_condition = max(maximum_condition, condition)
+-    if not np.all(np.isfinite(scores)):
+-        raise ValueError("Tucker masked output scores are nonfinite")
+-    return scores, minimum_observed, maximum_condition
++    if not score_rows or minimum_observed is None:
++        raise ValueError("Tucker output scores have no identifiable training sample")
++    scores = np.stack(score_rows)
++    return MaskedOutputScores(
++        scores=scores,
++        sample_mask=sample_mask,
++        minimum_observed_coordinates=minimum_observed,
++        maximum_condition_number=maximum_condition,
++        skipped_unobserved_samples=skipped_unobserved,
++        skipped_underidentified_samples=skipped_underidentified,
++        skipped_ill_conditioned_samples=skipped_ill_conditioned,
++    )
+ 
+ 
+ def fit_tucker_representation(
+@@ -180,6 +253,11 @@ def fit_tucker_representation(
+         raise ValueError("Tucker initialization must be svd or random")
+     if config.regularization < 0 or config.max_iter < 1 or config.tolerance <= 0:
+         raise ValueError("Tucker optimization controls are invalid")
++    if (
++        not np.isfinite(config.maximum_output_score_condition_number)
++        or config.maximum_output_score_condition_number < 1.0
++    ):
++        raise ValueError("Tucker output score condition limit must be finite and >= 1")
+     x_scale = (
+         _feature_x_scale(X) if config.feature_x_scale else np.ones(X.shape[2])
+     )
+@@ -226,23 +304,18 @@ def fit_tucker_representation(
+         verbose=False,
+     )
+     output_factors = [np.asarray(factor) for factor in output_factors]
+-    output_score_sample_mask = np.any(
+-        observed.reshape(len(observed), -1),
+-        axis=1,
+-    )
+-    if not np.any(output_score_sample_mask):
+-        raise ValueError("Tucker output scores have no observed training sample")
+-    output_scores, minimum_observed, maximum_condition = _masked_output_scores(
+-        target[output_score_sample_mask],
+-        observed[output_score_sample_mask],
++    output_scores = _masked_output_scores(
++        target,
++        observed,
+         output_factors,
++        config.maximum_output_score_condition_number,
+     )
+     flattened_x_core = np.asarray(x_core).reshape(len(X), -1)
+     return TuckerRepresentation(
+         x_factors=[np.asarray(factor) for factor in x_factors],
+         output_factors=output_factors,
+-        train_x_core=flattened_x_core[output_score_sample_mask],
+-        train_output_scores=output_scores,
++        train_x_core=flattened_x_core[output_scores.sample_mask],
++        train_output_scores=output_scores.scores,
+         x_scale=x_scale,
+         target_scale=target_scale,
+         target_rms=target_rms,
+@@ -250,10 +323,21 @@ def fit_tucker_representation(
+         output_ranks=output_ranks,
+         input_reconstruction_errors=[float(value) for value in x_errors],
+         output_reconstruction_errors=[float(value) for value in output_errors],
+-        output_score_minimum_observed_coordinates=minimum_observed,
+-        output_score_maximum_condition_number=maximum_condition,
+-        output_score_skipped_unobserved_samples=int(
+-            np.sum(~output_score_sample_mask)
++        output_score_training_samples=int(np.sum(output_scores.sample_mask)),
++        output_score_minimum_observed_coordinates=(
++            output_scores.minimum_observed_coordinates
++        ),
++        output_score_maximum_condition_number=(
++            output_scores.maximum_condition_number
++        ),
++        output_score_skipped_unobserved_samples=(
++            output_scores.skipped_unobserved_samples
++        ),
++        output_score_skipped_underidentified_samples=(
++            output_scores.skipped_underidentified_samples
++        ),
++        output_score_skipped_ill_conditioned_samples=(
++            output_scores.skipped_ill_conditioned_samples
+         ),
+         config=config,
+     )
+@@ -272,6 +356,7 @@ def fit_tucker_head(
+         "max_iter",
+         "initialization",
+         "tolerance",
++        "maximum_output_score_condition_number",
+         "seed",
+     )
+     if any(
+@@ -299,9 +384,12 @@ def fit_tucker_head(
+         output_ranks=representation.output_ranks,
+         input_reconstruction_errors=representation.input_reconstruction_errors,
+         output_reconstruction_errors=representation.output_reconstruction_errors,
++        output_score_training_samples=representation.output_score_training_samples,
+         output_score_minimum_observed_coordinates=representation.output_score_minimum_observed_coordinates,
+         output_score_maximum_condition_number=representation.output_score_maximum_condition_number,
+         output_score_skipped_unobserved_samples=representation.output_score_skipped_unobserved_samples,
++        output_score_skipped_underidentified_samples=representation.output_score_skipped_underidentified_samples,
++        output_score_skipped_ill_conditioned_samples=representation.output_score_skipped_ill_conditioned_samples,
+         config=config,
+     )
+ 
+@@ -371,10 +459,16 @@ def tucker_diagnostics(booster: TuckerBooster) -> dict[str, object]:
+         "output": output_diagnostics,
+         "input_ranks": list(booster.input_ranks),
+         "output_ranks": list(booster.output_ranks),
++        "output_score_training_samples": booster.output_score_training_samples,
+         "output_score_minimum_observed_coordinates": booster.output_score_minimum_observed_coordinates,
+         "output_score_maximum_condition_number": booster.output_score_maximum_condition_number,
+         "output_score_skipped_unobserved_samples": booster.output_score_skipped_unobserved_samples,
++        "output_score_skipped_underidentified_samples": booster.output_score_skipped_underidentified_samples,
++        "output_score_skipped_ill_conditioned_samples": booster.output_score_skipped_ill_conditioned_samples,
++        "output_score_maximum_condition_number_limit": (
++            booster.config.maximum_output_score_condition_number
++        ),
+         "missing_target_policy": (
+-            "mask_aware_spatial_score_least_squares_with_empty_sample_exclusion"
++            "mask_aware_spatial_score_lstsq_with_unidentified_sample_exclusion"
+         ),
+     }
+diff --git a/src/microstructure_veer/tournament/tensor_runner.py b/src/microstructure_veer/tournament/tensor_runner.py
+index 89b3489..cbe6b3e 100644
+--- a/src/microstructure_veer/tournament/tensor_runner.py
++++ b/src/microstructure_veer/tournament/tensor_runner.py
+@@ -116,6 +116,9 @@ def _tensor_config(
+     return TuckerConfig(
+         input_ranks=(int(params["input_rank"]),) * 3,
+         output_ranks=(int(params["output_rank"]),) * 2,
++        maximum_output_score_condition_number=float(
++            booster["admission_max_spatial_condition_number"]
++        ),
+         **common,
+     )
+ 
+@@ -438,6 +441,11 @@ def evaluate_tensor_trial(
+                     representation_cache=representation_cache,
+                 )
+                 if not increment.diagnostics.get("converged", False):
++                    record["failure_diagnostics"] = {
++                        "split_id": cache.split_id,
++                        "seed": seed,
++                        "diagnostics": increment.diagnostics,
++                    }
+                     raise SafetyError(
+                         f"{family} trial {trial.trial_id} failed convergence for seed {seed}"
+                     )
+diff --git a/tests/test_tensor_runner.py b/tests/test_tensor_runner.py
+index 2d7a07c..81da204 100644
+--- a/tests/test_tensor_runner.py
++++ b/tests/test_tensor_runner.py
+@@ -10,7 +10,9 @@ from microstructure_veer.tournament.tensor_runner import (
+     _group_tensor_trials,
+     build_reference_oof_cache,
+     clipped_target_balanced_gamma,
++    evaluate_tensor_trial,
+     fit_predict_tensor_increment,
++    TensorIncrement,
+ )
+ from microstructure_veer.tournament.search import TrialSpec
+ 
+@@ -238,3 +240,48 @@ def test_tensor_regularization_trials_reuse_structural_decomposition(monkeypatch
+ 
+     assert representation_calls == 1
+     assert head_calls == 2
++
++
++def test_failed_tensor_trial_preserves_nonconvergence_diagnostics(
++    monkeypatch,
++) -> None:
++    class CPProtocol:
++        seeds = (7,)
++
++    diagnostics = {
++        "converged": False,
++        "input": {"iteration_cap_hit": True},
++    }
++    monkeypatch.setattr(
++        tensor_runner_module,
++        "fit_predict_tensor_increment",
++        lambda *args, **kwargs: TensorIncrement(
++            prediction=np.zeros((1, 1, 1)),
++            diagnostics=diagnostics,
++        ),
++    )
++    trial = TrialSpec(
++        "cp",
++        (
++            ("initialization", "svd"),
++            ("iteration_cap", 250),
++            ("rank", 1),
++            ("regularization", 0.1),
++        ),
++        "nonconverged",
++    )
++
++    record = evaluate_tensor_trial(
++        "cp",
++        trial,
++        (SimpleNamespace(split_id="inner-1"),),
++        CPProtocol(),
++    )
++
++    assert record["status"] == "FAILED"
++    assert record["failure_type"] == "SafetyError"
++    assert record["failure_diagnostics"] == {
++        "split_id": "inner-1",
++        "seed": 7,
++        "diagnostics": diagnostics,
++    }
+diff --git a/tests/test_tournament_contract.py b/tests/test_tournament_contract.py
+index abeff0a..f369fc0 100644
+--- a/tests/test_tournament_contract.py
++++ b/tests/test_tournament_contract.py
+@@ -31,12 +31,13 @@ def test_tournament_protocol_is_hash_stable_and_complete() -> None:
+     }
+     assert first.trial_budget("elastic_net") >= 50
+     assert first.trial_budget("gradient_boosting") >= 100
+-    assert first.trial_budget("cp") == 180
+-    assert first.trial_budget("tucker") >= 100
++    assert first.trial_budget("cp") == 360
++    assert first.trial_budget("tucker") == 512
+     assert first.trial_budget("simple_factor") == 12
+     assert first.minimum_valid_trials("elastic_net") == 50
+     assert first.minimum_valid_trials("gradient_boosting") == 100
+     assert first.minimum_valid_trials("cp") == 100
++    assert first.minimum_valid_trials("tucker") == 100
+     assert first.minimum_valid_trials("target_ridge") == 1
+     assert first.trial_budget("target_ridge") == 10
+     assert (
+@@ -45,7 +46,25 @@ def test_tournament_protocol_is_hash_stable_and_complete() -> None:
+     )
+     assert "alphas" not in first.family_space("simple_factor")
+     assert first.family_space("factor_ridge")["factor_counts"] == list(range(1, 13))
++    assert first.family_space("cp")["ranks"] == [
++        1,
++        2,
++        3,
++        4,
++        5,
++        6,
++        8,
++        10,
++        12,
++        16,
++    ]
+     assert first.family_space("cp")["iteration_caps"] == [250, 500, 1000]
++    assert first.family_space("tucker")["iteration_caps"] == [
++        250,
++        500,
++        1000,
++        2000,
++    ]
+ 
+ 
+ def test_protocol_rejects_protected_data_access(tmp_path: Path) -> None:
+diff --git a/tests/test_tournament_search.py b/tests/test_tournament_search.py
+index 5e5922c..f650fa0 100644
+--- a/tests/test_tournament_search.py
++++ b/tests/test_tournament_search.py
+@@ -115,6 +115,7 @@ def test_trial_checkpoint_must_match_the_expanded_trial_exactly() -> None:
+     assert selected_boundary_flags(
+         PROTOCOL, "gradient_boosting", {"max_depth": None}
+     ) == []
+-    assert selected_boundary_flags(PROTOCOL, "cp", {"rank": 5})[0][
++    assert selected_boundary_flags(PROTOCOL, "cp", {"rank": 5}) == []
++    assert selected_boundary_flags(PROTOCOL, "cp", {"rank": 16})[0][
+         "boundary"
+     ] == "upper"
+diff --git a/tests/test_tucker_booster.py b/tests/test_tucker_booster.py
+index 9d44ba7..aecad1a 100644
+--- a/tests/test_tucker_booster.py
++++ b/tests/test_tucker_booster.py
+@@ -110,13 +110,53 @@ def test_tucker_excludes_fully_unobserved_output_score_samples() -> None:
+     assert representation.train_x_core.shape[0] == 8
+     assert representation.train_output_scores.shape[0] == 8
+     diagnostics = tucker_diagnostics(first)
++    assert diagnostics["output_score_training_samples"] == 8
+     assert diagnostics["output_score_skipped_unobserved_samples"] == 2
++    assert diagnostics["output_score_skipped_underidentified_samples"] == 0
++    assert diagnostics["output_score_skipped_ill_conditioned_samples"] == 0
+     assert (
+         diagnostics["missing_target_policy"]
+-        == "mask_aware_spatial_score_least_squares_with_empty_sample_exclusion"
++        == "mask_aware_spatial_score_lstsq_with_unidentified_sample_exclusion"
+     )
+ 
+ 
++def test_tucker_excludes_unidentifiable_output_score_samples() -> None:
++    rng = np.random.default_rng(132)
++    X = rng.normal(size=(12, 3, 2, 2))
++    residual = rng.normal(size=(12, 3, 2))
++    mask = np.ones_like(residual, dtype=bool)
++    mask[0] = False
++    mask[0].reshape(-1)[:3] = True
++    mask[1] = False
++    config = TuckerConfig(
++        input_ranks=(1, 1, 1),
++        output_ranks=(2, 2),
++        regularization=1.0,
++        max_iter=2,
++        initialization="svd",
++        seed=132,
++    )
++
++    representation = fit_tucker_representation(X, residual, mask, config)
++    first = fit_tucker_head(representation, config)
++    changed = residual.copy()
++    changed[~mask] = 1.0e20
++    second = fit_tucker_booster(X, changed, mask, config)
++
++    np.testing.assert_allclose(
++        predict_tucker_booster(first, X),
++        predict_tucker_booster(second, X),
++    )
++    assert representation.train_x_core.shape[0] == 10
++    assert representation.train_output_scores.shape == (10, 4)
++    diagnostics = tucker_diagnostics(first)
++    assert diagnostics["output_score_training_samples"] == 10
++    assert diagnostics["output_score_minimum_observed_coordinates"] >= 4
++    assert diagnostics["output_score_skipped_unobserved_samples"] == 1
++    assert diagnostics["output_score_skipped_underidentified_samples"] == 1
++    assert diagnostics["output_score_skipped_ill_conditioned_samples"] == 0
++
++
+ def test_tucker_output_scores_reconstruct_observed_low_rank_targets() -> None:
+     rng = np.random.default_rng(14)
+     firm_factor, _ = np.linalg.qr(rng.normal(size=(4, 2)))
+@@ -125,22 +165,24 @@ def test_tucker_output_scores_reconstruct_observed_low_rank_targets() -> None:
+     target = np.einsum(
+         "sab,ia,jb->sij", latent, firm_factor, target_factor, optimize=True
+     )
+-    scores, minimum, condition = _masked_output_scores(
++    output_scores = _masked_output_scores(
+         target,
+         np.ones_like(target, dtype=bool),
+         [firm_factor, target_factor],
++        1.0e12,
+     )
+     reconstructed = np.einsum(
+         "sab,ia,jb->sij",
+-        scores.reshape(5, 2, 2),
++        output_scores.scores.reshape(5, 2, 2),
+         firm_factor,
+         target_factor,
+         optimize=True,
+     )
+ 
+     np.testing.assert_allclose(reconstructed, target, atol=1.0e-10)
+-    assert minimum == 12
+-    assert np.isfinite(condition)
++    assert np.all(output_scores.sample_mask)
++    assert output_scores.minimum_observed_coordinates == 12
++    assert np.isfinite(output_scores.maximum_condition_number)
+ 
+ 
+ def test_tucker_random_initialization_repeats_for_same_seed() -> None:
+-- 
+2.50.1 (Apple Git-155)
+

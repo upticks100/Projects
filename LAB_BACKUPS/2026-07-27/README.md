@@ -64,6 +64,35 @@ git merge --ff-only FETCH_HEAD
 
 The update contains only the Tucker missing-target correction, CP convergence-search expansion, tests, compute accounting, and research log. It contains no licensed data, credentials, caches, or runtime outputs.
 
+## Rank-identification and search-boundary update
+
+Commit `2469f2f3e2a942efaa43c810265d8f9f2847dd3b` is preserved as both an exact one-commit patch and a complete-history Git bundle:
+
+- `microstructure-veers-2469f2f.patch`
+- `microstructure-veers-2469f2f.bundle.b64`
+
+Patch SHA-256:
+
+`1cb336edc84771a98d40a9c3a9fd7c635e86f92f91b5677b8ed1187a221824fa`
+
+Decoded bundle SHA-256:
+
+`922c6104b8d07f3e739235492a633422bf2ca18ff6a5c0d3e88f2f38b22986ae`
+
+Base64 bundle SHA-256:
+
+`71cefd764d40f45f2e93978ee92285994847bb9b2f99145b328b82c39d69ffd0`
+
+Restore the complete repository directly on macOS:
+
+```bash
+base64 -D -i microstructure-veers-2469f2f.bundle.b64 -o microstructure-veers-2469f2f.bundle
+git clone -b codex/intraday-liquidity-veer microstructure-veers-2469f2f.bundle microstructure-veers-2469f2f
+git -C microstructure-veers-2469f2f rev-parse HEAD
+```
+
+The final command must print `2469f2f3e2a942efaa43c810265d8f9f2847dd3b`. The patch applies to parent commit `e3183f4e600e2c923f5591b0d8b019269b976b17`. This update contains only the rank-aware Tucker output-score correction, preserved failure diagnostics, evidence-based CP/Tucker search expansion, tests, documentation, and research log. It contains no licensed data, credentials, caches, runtime outputs, predictions, or model results.
+
 Apply the source patch after extracting the base archive:
 
 ```bash
