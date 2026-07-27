@@ -1,0 +1,557 @@
+From 900e1e047705fe75dca9fe02a68e6b48f3b06b71 Mon Sep 17 00:00:00 2001
+From: Bryan <bryan.w.mac@gmail.com>
+Date: Mon, 27 Jul 2026 03:32:40 -0400
+Subject: [PATCH] Make Stage A searches restart-safe
+
+---
+ configs/forecast_tournament.yaml              |  2 +-
+ logs/RESEARCH_LOG.md                          | 18 ++++
+ .../tournament/contracts.py                   | 41 ++++++++
+ src/microstructure_veer/tournament/models.py  | 49 +++++++++-
+ src/microstructure_veer/tournament/runner.py  | 19 ++--
+ tests/test_tournament_contract.py             | 18 ++++
+ tests/test_tournament_models.py               | 36 +++++++
+ tests/test_tournament_runner.py               | 95 +++++++++++++++++++
+ tests/test_tournament_search.py               | 25 ++++-
+ 9 files changed, 289 insertions(+), 14 deletions(-)
+
+diff --git a/configs/forecast_tournament.yaml b/configs/forecast_tournament.yaml
+index 00c1e5e..80147e6 100644
+--- a/configs/forecast_tournament.yaml
++++ b/configs/forecast_tournament.yaml
+@@ -200,7 +200,7 @@ model_families:
+   pooled_ridge:
+     alphas: [0.0, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
+   target_ridge:
+-    alphas: [0.0, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0]
++    alphas: [0.0, 0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0, 10000.0, intercept_only]
+   elastic_net:
+     alphas: [0.0001, 0.001, 0.01, 0.1, 1.0, 10.0]
+     l1_ratios: [0.1, 0.5, 0.9]
+diff --git a/logs/RESEARCH_LOG.md b/logs/RESEARCH_LOG.md
+index 7277892..f5f7bda 100644
+--- a/logs/RESEARCH_LOG.md
++++ b/logs/RESEARCH_LOG.md
+@@ -825,3 +825,21 @@
+   identity, and falsified selection metrics. The complete code-only suite passed
+   with `414 passed in 16.25s` in a disposable lab copy; the live extractor and
+   licensed data were not inspected or modified.
++
++## 2026-07-27
++
++- Audited the interrupted Stage A resource pilot without opening candidate or
++  final-holdout data. Gradient-boosting checkpoints were published only after
++  every same-lag trial completed a fold, so an interruption inside the first
++  144-trial group could leave no durable progress. Streamed non-tensor search
++  now invokes the checkpoint callback immediately after each trial-fold result;
++  a simulated disconnect proves a later trial does not start before the earlier
++  trial is persisted.
++- The tensor reference search selected target Ridge at the largest finite alpha
++  for one target. Because Ridge retains an unpenalized intercept, its exact
++  infinite-alpha limit is an intercept-only forecast rather than zero. The
++  prespecified target-Ridge grid now ends with an explicit `intercept_only`
++  natural endpoint, supports target-wise mixtures of finite and intercept-only
++  heads during outer replay, and records the convention in diagnostics. No
++  economic result or protected period informed the change. The complete local
++  code-only suite passed with `420 passed in 21.19s`.
+diff --git a/src/microstructure_veer/tournament/contracts.py b/src/microstructure_veer/tournament/contracts.py
+index c8ce54f..572a540 100644
+--- a/src/microstructure_veer/tournament/contracts.py
++++ b/src/microstructure_veer/tournament/contracts.py
+@@ -3,6 +3,7 @@ from __future__ import annotations
+ 
+ import hashlib
+ import json
++import math
+ from dataclasses import dataclass
+ from datetime import date, datetime
+ from pathlib import Path
+@@ -36,6 +37,23 @@ REQUIRED_MODEL_FAMILIES = (
+ STOCHASTIC_MODEL_FAMILIES = frozenset(
+     {"simple_factor", "factor_ridge", "cp", "tucker"}
+ )
++TARGET_RIDGE_INTERCEPT_ONLY = "intercept_only"
++
++
++def normalize_target_ridge_alpha(value: Any) -> float | str:
++    if value == TARGET_RIDGE_INTERCEPT_ONLY:
++        return TARGET_RIDGE_INTERCEPT_ONLY
++    if isinstance(value, bool):
++        raise SafetyError("target Ridge alpha must be numeric or intercept_only")
++    try:
++        alpha = float(value)
++    except (TypeError, ValueError) as error:
++        raise SafetyError(
++            "target Ridge alpha must be numeric or intercept_only"
++        ) from error
++    if not math.isfinite(alpha) or alpha < 0:
++        raise SafetyError("target Ridge alpha must be finite and nonnegative")
++    return alpha
+ 
+ 
+ def _json_default(value: Any) -> str:
+@@ -350,6 +368,29 @@ class TournamentProtocol:
+             raise SafetyError("model families or their prespecified order changed")
+         if set(raw["model_families"]) != set(REQUIRED_MODEL_FAMILIES):
+             raise SafetyError("model-family search mappings are incomplete or extraneous")
++        target_ridge_alphas = tuple(
++            self.family_space("target_ridge").get("alphas", ())
++        )
++        if (
++            len(target_ridge_alphas) < 2
++            or target_ridge_alphas[-1] != TARGET_RIDGE_INTERCEPT_ONLY
++            or TARGET_RIDGE_INTERCEPT_ONLY in target_ridge_alphas[:-1]
++        ):
++            raise SafetyError(
++                "target Ridge must end with one intercept-only natural endpoint"
++            )
++        finite_target_ridge_alphas = tuple(
++            normalize_target_ridge_alpha(value)
++            for value in target_ridge_alphas[:-1]
++        )
++        if (
++            finite_target_ridge_alphas[0] != 0.0
++            or finite_target_ridge_alphas
++            != tuple(sorted(set(finite_target_ridge_alphas)))
++        ):
++            raise SafetyError(
++                "target Ridge finite alphas must be sorted, unique, and start at zero"
++            )
+         expected_factors = tuple(range(1, len(INTRADAY_PREDICTORS) + 1))
+         for family in ("simple_factor", "factor_ridge"):
+             counts = tuple(int(value) for value in self.family_space(family)["factor_counts"])
+diff --git a/src/microstructure_veer/tournament/models.py b/src/microstructure_veer/tournament/models.py
+index 4c2870a..cfc2f6a 100644
+--- a/src/microstructure_veer/tournament/models.py
++++ b/src/microstructure_veer/tournament/models.py
+@@ -11,6 +11,10 @@ from sklearn.ensemble import HistGradientBoostingRegressor
+ from sklearn.linear_model import ElasticNet, Ridge
+ 
+ from microstructure_veer.safety import SafetyError
++from microstructure_veer.tournament.contracts import (
++    TARGET_RIDGE_INTERCEPT_ONLY,
++    normalize_target_ridge_alpha,
++)
+ from microstructure_veer.tournament.preprocessing import PreparedFoldData
+ 
+ 
+@@ -199,6 +203,8 @@ def _fit_target_heads(
+     targets: np.ndarray,
+     mask: np.ndarray,
+     factory: Callable[[int], Any],
++    *,
++    intercept_only_targets: frozenset[int] = frozenset(),
+ ) -> tuple[np.ndarray, list[Any]]:
+     train = np.asarray(train_design, dtype=np.float32)
+     validation = np.asarray(validation_design, dtype=np.float32)
+@@ -212,12 +218,21 @@ def _fit_target_heads(
+     validation_rows = validation.reshape(-1, validation.shape[2])
+     prediction = np.empty((len(validation_rows), Y.shape[2]), dtype=float)
+     models: list[Any] = []
++    if any(
++        target < 0 or target >= Y.shape[2]
++        for target in intercept_only_targets
++    ):
++        raise SafetyError("intercept-only target index is out of bounds")
+     for target in range(Y.shape[2]):
+         observed = M[:, :, target].reshape(-1)
+         if not np.any(observed):
+             raise SafetyError(f"target {target} has no observed training rows")
++        target_values = Y[:, :, target].reshape(-1)
++        if target in intercept_only_targets:
++            prediction[:, target] = float(np.mean(target_values[observed]))
++            continue
+         model = factory(target)
+-        model.fit(train_rows[observed], Y[:, :, target].reshape(-1)[observed])
++        model.fit(train_rows[observed], target_values[observed])
+         values = np.asarray(model.predict(validation_rows), dtype=float).reshape(-1)
+         if len(values) != len(validation_rows) or not np.all(np.isfinite(values)):
+             raise SafetyError(f"target model {target} produced invalid predictions")
+@@ -507,10 +522,20 @@ def fit_predict_non_tensor(
+     elif family in {"pooled_ridge", "target_ridge"}:
+         alphas = params.get("alphas")
+         if alphas is None:
+-            alphas = [float(params["alpha"])] * Y.shape[2]
+-        alpha_values = tuple(float(value) for value in alphas)
++            alphas = [params["alpha"]] * Y.shape[2]
++        if family == "target_ridge":
++            alpha_values = tuple(
++                normalize_target_ridge_alpha(value) for value in alphas
++            )
++        else:
++            alpha_values = tuple(float(value) for value in alphas)
+         if len(alpha_values) != Y.shape[2]:
+             raise SafetyError("target Ridge requires one selected alpha per target")
++        intercept_only_targets = frozenset(
++            target
++            for target, alpha in enumerate(alpha_values)
++            if alpha == TARGET_RIDGE_INTERCEPT_ONLY
++        )
+         full_lags = train.prepared.tensor_features.shape[3]
+         train_design, validation_design = history_design(full_lags)
+         prediction, models = _fit_target_heads(
+@@ -518,10 +543,24 @@ def fit_predict_non_tensor(
+             validation_design,
+             Y,
+             M,
+-            lambda target: Ridge(alpha=alpha_values[target], fit_intercept=True),
++            lambda target: Ridge(
++                alpha=float(alpha_values[target]),
++                fit_intercept=True,
++            ),
++            intercept_only_targets=intercept_only_targets,
+         )
+         diagnostics = _iteration_diagnostics(models) | {
+-            "selected_alphas": list(alpha_values)
++            "selected_alphas": list(alpha_values),
++            "intercept_only_target_indices": sorted(intercept_only_targets),
++            "intercept_only_target_count": len(intercept_only_targets),
++            "intercept_only_scaled_predictions": [
++                (
++                    float(prediction[0, 0, target])
++                    if target in intercept_only_targets
++                    else None
++                )
++                for target in range(Y.shape[2])
++            ],
+         }
+     elif family == "elastic_net":
+         lag_count = int(params["lag_count"])
+diff --git a/src/microstructure_veer/tournament/runner.py b/src/microstructure_veer/tournament/runner.py
+index e42ba89..68a4778 100644
+--- a/src/microstructure_veer/tournament/runner.py
++++ b/src/microstructure_veer/tournament/runner.py
+@@ -11,8 +11,10 @@ from microstructure_veer.data.intraday_bars import IntradayExamples
+ from microstructure_veer.safety import SafetyError
+ from microstructure_veer.tournament.contracts import (
+     STOCHASTIC_MODEL_FAMILIES,
++    TARGET_RIDGE_INTERCEPT_ONLY,
+     OuterFold,
+     TournamentProtocol,
++    normalize_target_ridge_alpha,
+ )
+ from microstructure_veer.tournament.metrics import (
+     forecast_metrics,
+@@ -556,7 +558,6 @@ def evaluate_non_tensor_search_streamed(
+             row_history_cache: dict[tuple[str, int], RowHistoryDesign] | None = (
+                 {} if family in ROW_HISTORY_CACHE_FAMILIES else None
+             )
+-            changed_records: list[dict[str, Any]] = []
+             try:
+                 remember_preprocessor(
+                     split.split_id,
+@@ -588,16 +589,14 @@ def evaluate_non_tensor_search_streamed(
+                         record["completed_inner_folds"] = len(
+                             record["inner_folds"]
+                         )
+-                    changed_records.append(record)
++                    if trial_callback is not None:
++                        trial_callback(record)
+             finally:
+                 if factor_cache is not None:
+                     factor_cache.clear()
+                 if row_history_cache is not None:
+                     row_history_cache.clear()
+                 del split
+-            if trial_callback is not None:
+-                for record in changed_records:
+-                    trial_callback(record)
+ 
+     for fold in fold_values:
+         split_id = f"inner-{fold.split_id}"
+@@ -657,9 +656,12 @@ _NATURAL_LOWER_BOUNDS = {
+ 
+ def _is_natural_upper_bound(
+     protocol: TournamentProtocol,
++    family: str,
+     parameter: str,
+     value: Any,
+ ) -> bool:
++    if family == "target_ridge" and parameter == "alpha":
++        return value == TARGET_RIDGE_INTERCEPT_ONLY
+     if parameter == "lag_count":
+         bar = protocol.raw["bar_contract"]
+         maximum_lags = int(bar["input_lookback_minutes"]) // int(
+@@ -698,7 +700,7 @@ def _boundary_flag(
+     ):
+         return None
+     if position == len(values) - 1 and _is_natural_upper_bound(
+-        protocol, parameter, value
++        protocol, family, parameter, value
+     ):
+         return None
+     return {
+@@ -751,7 +753,10 @@ def select_non_tensor_configuration(
+             for target in range(target_count)
+         ]
+         params = {
+-            "alphas": [float(row["params"]["alpha"]) for row in selected_rows]
++            "alphas": [
++                normalize_target_ridge_alpha(row["params"]["alpha"])
++                for row in selected_rows
++            ]
+         }
+         score = float(
+             np.mean(
+diff --git a/tests/test_tournament_contract.py b/tests/test_tournament_contract.py
+index 0e8d2eb..61ed370 100644
+--- a/tests/test_tournament_contract.py
++++ b/tests/test_tournament_contract.py
+@@ -6,6 +6,7 @@ import yaml
+ from microstructure_veer.safety import SafetyError
+ from microstructure_veer.tournament.contracts import (
+     STOCHASTIC_MODEL_FAMILIES,
++    TARGET_RIDGE_INTERCEPT_ONLY,
+     TournamentProtocol,
+ )
+ 
+@@ -37,6 +38,11 @@ def test_tournament_protocol_is_hash_stable_and_complete() -> None:
+     assert first.minimum_valid_trials("gradient_boosting") == 100
+     assert first.minimum_valid_trials("cp") == 100
+     assert first.minimum_valid_trials("target_ridge") == 1
++    assert first.trial_budget("target_ridge") == 10
++    assert (
++        first.family_space("target_ridge")["alphas"][-1]
++        == TARGET_RIDGE_INTERCEPT_ONLY
++    )
+     assert "alphas" not in first.family_space("simple_factor")
+     assert first.family_space("factor_ridge")["factor_counts"] == list(range(1, 13))
+ 
+@@ -61,6 +67,18 @@ def test_protocol_rejects_incomplete_factor_rank_search(tmp_path: Path) -> None:
+         TournamentProtocol.from_yaml(changed)
+ 
+ 
++def test_protocol_rejects_target_ridge_without_natural_endpoint(
++    tmp_path: Path,
++) -> None:
++    payload = yaml.safe_load(PROTOCOL.read_text(encoding="utf-8"))
++    payload["model_families"]["target_ridge"]["alphas"].pop()
++    changed = tmp_path / "protocol.yaml"
++    changed.write_text(yaml.safe_dump(payload), encoding="utf-8")
++
++    with pytest.raises(SafetyError, match="intercept-only"):
++        TournamentProtocol.from_yaml(changed)
++
++
+ def test_protocol_order_survives_sorted_yaml_round_trip(tmp_path: Path) -> None:
+     payload = yaml.safe_load(PROTOCOL.read_text(encoding="utf-8"))
+     changed = tmp_path / "protocol.yaml"
+diff --git a/tests/test_tournament_models.py b/tests/test_tournament_models.py
+index 84f30a2..a482e26 100644
+--- a/tests/test_tournament_models.py
++++ b/tests/test_tournament_models.py
+@@ -2,6 +2,9 @@ import numpy as np
+ import microstructure_veer.tournament.models as models_module
+ import pytest
+ 
++from microstructure_veer.tournament.contracts import (
++    TARGET_RIDGE_INTERCEPT_ONLY,
++)
+ from microstructure_veer.tournament.models import (
+     ModelFoldData,
+     fit_factor_representation,
+@@ -137,6 +140,39 @@ def test_masked_target_value_never_enters_ridge_fit() -> None:
+     np.testing.assert_allclose(first, second)
+ 
+ 
++def test_target_ridge_intercept_only_is_exact_infinite_alpha_limit() -> None:
++    rng = np.random.default_rng(21)
++    train = fold_data(rng, 40, "2018-01-01")
++    validation = fold_data(rng, 8, "2019-01-01")
++    train.prepared.target_mask[0, 0, 0] = False
++    train.prepared.scaled_targets[0, 0, 0] = 1.0e20
++
++    result = fit_predict_non_tensor(
++        "target_ridge",
++        {
++            "alphas": [
++                TARGET_RIDGE_INTERCEPT_ONLY,
++                1.0,
++                TARGET_RIDGE_INTERCEPT_ONLY,
++                10.0,
++            ]
++        },
++        train,
++        validation,
++        seed=7,
++    )
++
++    for target in (0, 2):
++        observed = train.prepared.target_mask[:, :, target]
++        expected = np.mean(
++            train.prepared.scaled_targets[:, :, target][observed]
++        )
++        np.testing.assert_allclose(result.prediction[:, :, target], expected)
++    assert result.diagnostics["fit_count"] == 2
++    assert result.diagnostics["intercept_only_target_indices"] == [0, 2]
++    assert result.diagnostics["intercept_only_target_count"] == 2
++
++
+ def test_randomized_factor_representation_repeats_for_same_seed() -> None:
+     rng = np.random.default_rng(20)
+     train = fold_data(rng, 40, "2018-01-01")
+diff --git a/tests/test_tournament_runner.py b/tests/test_tournament_runner.py
+index a963fe3..e126955 100644
+--- a/tests/test_tournament_runner.py
++++ b/tests/test_tournament_runner.py
+@@ -9,6 +9,9 @@ import pytest
+ 
+ from microstructure_veer.data.intraday_bars import IntradayExamples
+ from microstructure_veer.safety import SafetyError
++from microstructure_veer.tournament.contracts import (
++    TARGET_RIDGE_INTERCEPT_ONLY,
++)
+ from microstructure_veer.tournament.models import ModelFoldData
+ from microstructure_veer.tournament.runner import (
+     evaluate_non_tensor_search_streamed,
+@@ -361,6 +364,60 @@ def test_streamed_search_resumes_only_missing_inner_fold_prefix(
+     assert [record["status"] for record in records] == ["VALID", "VALID"]
+ 
+ 
++def test_streamed_callback_runs_before_later_trial_in_group(
++    monkeypatch,
++) -> None:
++    data = examples()
++    folds = (
++        InnerFold(1, np.arange(20), np.arange(30, 35)),
++        InnerFold(2, np.arange(25), np.arange(40, 45)),
++    )
++    trials = (
++        TrialSpec("persistence", (), "persistence-one"),
++        TrialSpec("persistence", (), "persistence-two"),
++    )
++    calls: list[str] = []
++    checkpoint: dict = {}
++    original = runner_module._evaluate_non_tensor_trial_fold
++
++    def counted(family, trial, split, protocol_value, record, **kwargs):
++        calls.append(trial.trial_id)
++        return original(
++            family,
++            trial,
++            split,
++            protocol_value,
++            record,
++            **kwargs,
++        )
++
++    class SimulatedDisconnect(RuntimeError):
++        pass
++
++    def interrupt(record):
++        checkpoint.update(record)
++        raise SimulatedDisconnect
++
++    monkeypatch.setattr(
++        runner_module,
++        "_evaluate_non_tensor_trial_fold",
++        counted,
++    )
++    with pytest.raises(SimulatedDisconnect):
++        evaluate_non_tensor_search_streamed(
++            data,
++            protocol(),
++            "persistence",
++            folds,
++            trials,
++            trial_callback=interrupt,
++        )
++
++    assert calls == ["persistence-one"]
++    assert checkpoint["trial_id"] == "persistence-one"
++    assert checkpoint["completed_inner_folds"] == 1
++
++
+ def test_streamed_target_ridge_reuses_one_history_design_per_fold(
+     monkeypatch,
+ ) -> None:
+@@ -427,6 +484,44 @@ def test_target_ridge_selection_is_separable_by_target() -> None:
+     assert selected["inner_target_balanced_mse"] == 1.0
+ 
+ 
++def test_target_ridge_selection_can_choose_intercept_only_by_target() -> None:
++    rows = [
++        {
++            "trial_id": "finite",
++            "status": "VALID",
++            "params": {"alpha": 10.0},
++            "mean_target_balanced_mse": 2.0,
++            "mean_per_target_mse": [1.0, 3.0, 1.0, 3.0],
++        },
++        {
++            "trial_id": "intercept",
++            "status": "VALID",
++            "params": {"alpha": TARGET_RIDGE_INTERCEPT_ONLY},
++            "mean_target_balanced_mse": 2.0,
++            "mean_per_target_mse": [3.0, 1.0, 3.0, 1.0],
++        },
++    ]
++
++    selected = select_non_tensor_configuration(
++        "target_ridge",
++        rows,
++        protocol(),
++    )
++
++    assert selected["params"]["alphas"] == [
++        10.0,
++        TARGET_RIDGE_INTERCEPT_ONLY,
++        10.0,
++        TARGET_RIDGE_INTERCEPT_ONLY,
++    ]
++    assert selected["selected_trial_ids"] == [
++        "finite",
++        "intercept",
++        "finite",
++        "intercept",
++    ]
++
++
+ def test_factor_search_reuses_one_max_rank_pca_per_fold_and_seed(monkeypatch) -> None:
+     data = examples()
+     split = prepare_model_split(
+diff --git a/tests/test_tournament_search.py b/tests/test_tournament_search.py
+index c8eaa28..5e5922c 100644
+--- a/tests/test_tournament_search.py
++++ b/tests/test_tournament_search.py
+@@ -1,6 +1,9 @@
+ from pathlib import Path
+ 
+-from microstructure_veer.tournament.contracts import TournamentProtocol
++from microstructure_veer.tournament.contracts import (
++    TARGET_RIDGE_INTERCEPT_ONLY,
++    TournamentProtocol,
++)
+ from microstructure_veer.tournament.search import (
+     expand_family_trials,
+     serialized_search_space,
+@@ -40,6 +43,26 @@ def test_search_serialization_is_hash_stable() -> None:
+     assert first == second
+ 
+ 
++def test_target_ridge_search_ends_at_exact_intercept_only_limit() -> None:
++    trials = expand_family_trials(PROTOCOL, "target_ridge")
++
++    assert trials[-1].as_dict() == {
++        "alpha": TARGET_RIDGE_INTERCEPT_ONLY
++    }
++    assert selected_boundary_flags(
++        PROTOCOL,
++        "target_ridge",
++        {
++            "alphas": [
++                10000.0,
++                TARGET_RIDGE_INTERCEPT_ONLY,
++                1000.0,
++                0.0,
++            ]
++        },
++    ) == []
++
++
+ def test_gradient_boosting_has_a_nonboundary_configuration() -> None:
+     assert selected_boundary_flags(
+         PROTOCOL,
+-- 
+2.50.1 (Apple Git-155)
+
