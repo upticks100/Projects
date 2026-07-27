@@ -10,7 +10,7 @@ Decoded archive SHA-256:
 
 Contents: 191 tracked source/configuration/documentation/test files, represented by 210 tar members under `microstructure-veers/`. Raw WRDS data, credentials, caches, runtime outputs, and untracked files are excluded.
 
-## Incremental source update
+## Restart-safety update
 
 Commit `900e1e047705fe75dca9fe02a68e6b48f3b06b71` is preserved in two forms:
 
@@ -31,9 +31,38 @@ Apply the exact bundle on macOS:
 
 ```bash
 base64 -D -i microstructure-veers-900e1e0.bundle.b64 -o microstructure-veers-900e1e0.bundle
-git fetch microstructure-veers-900e1e0.bundle codex/intraday-liquidity-veer
+git fetch microstructure-veers-900e1e0.bundle HEAD
 git merge --ff-only FETCH_HEAD
 ```
+
+## Tensor-pilot remediation update
+
+Commit `e3183f4e600e2c923f5591b0d8b019269b976b17` is preserved as an incremental update whose prerequisite is commit `900e1e047705fe75dca9fe02a68e6b48f3b06b71`:
+
+- `microstructure-veers-e3183f4.patch`
+- `microstructure-veers-e3183f4.bundle.b64`
+
+Patch SHA-256:
+
+`5ae53a23d85126d6c6a80c1a2d7f9d0d01b87ae90f8ee5b9eaf0e18019afd592`
+
+Decoded bundle SHA-256:
+
+`942c38966f18bc382e6bac9d482a4269a60a5999453234329982cdee66383fa8`
+
+Base64 bundle SHA-256:
+
+`e2fdbbb6d48a94aa539b42409f3fe238b975d024b6eb383209eb9bc7dcb1cc5c`
+
+Apply after restoring commit `900e1e0`:
+
+```bash
+base64 -D -i microstructure-veers-e3183f4.bundle.b64 -o microstructure-veers-e3183f4.bundle
+git fetch microstructure-veers-e3183f4.bundle HEAD
+git merge --ff-only FETCH_HEAD
+```
+
+The update contains only the Tucker missing-target correction, CP convergence-search expansion, tests, compute accounting, and research log. It contains no licensed data, credentials, caches, or runtime outputs.
 
 Apply the source patch after extracting the base archive:
 
@@ -41,6 +70,7 @@ Apply the source patch after extracting the base archive:
 cd microstructure-veers
 git init
 git apply ../microstructure-veers-source-900e1e0.patch
+git apply ../microstructure-veers-e3183f4.patch
 ```
 
 ## Restore base archive on macOS
