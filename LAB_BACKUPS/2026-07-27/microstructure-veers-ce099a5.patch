@@ -1,0 +1,236 @@
+From ce099a594c338f9da6b32298a8f8b37ddc769570 Mon Sep 17 00:00:00 2001
+From: Bryan <bryan.w.mac@gmail.com>
+Date: Fri, 31 Jul 2026 00:02:11 -0400
+Subject: [PATCH] Expand Gradient Boosting search boundaries
+
+---
+ configs/forecast_tournament.yaml              |  4 +-
+ docs/COMPUTE_INFRA.md                         | 21 +++++-----
+ logs/RESEARCH_LOG.md                          | 17 ++++++++
+ .../tournament/contracts.py                   | 25 +++++++++++-
+ tests/test_tournament_contract.py             | 40 ++++++++++++++++++-
+ tests/test_tournament_search.py               | 14 +++++++
+ 6 files changed, 108 insertions(+), 13 deletions(-)
+
+diff --git a/configs/forecast_tournament.yaml b/configs/forecast_tournament.yaml
+index 7ad9f47..e152204 100644
+--- a/configs/forecast_tournament.yaml
++++ b/configs/forecast_tournament.yaml
+@@ -217,8 +217,8 @@ model_families:
+   gradient_boosting:
+     max_depth: [2, 4, null]
+     learning_rate: [0.01, 0.03, 0.1, 0.3]
+-    l2_regularization: [0.0, 1.0, 10.0]
+-    max_iter: [50, 100, 300, 600]
++    l2_regularization: [0.0, 1.0, 10.0, 100.0, 1000.0]
++    max_iter: [50, 100, 300, 600, 1200, 2400]
+     early_stopping: false
+   cp:
+     admission_status: pending_convergence_pilot
+diff --git a/docs/COMPUTE_INFRA.md b/docs/COMPUTE_INFRA.md
+index 3006279..c7ae3d9 100644
+--- a/docs/COMPUTE_INFRA.md
++++ b/docs/COMPUTE_INFRA.md
+@@ -114,9 +114,9 @@ representations. Regularization heads reuse each structural representation,
+ and the representation cache is evicted before the next structural group.
+ 
+ The full development manifest contains 45 family-fold tasks. It accounts for
+-2,285 declared family trials per outer fold plus ten reference-Ridge trials in
+-each of the CP and Tucker tasks: 2,305 checkpointed trial records per fold and
+-6,915 across development. Outer prediction arrays are approximately 20 MiB
++3,581 declared family trials per outer fold plus ten reference-Ridge trials in
++each of the CP and Tucker tasks: 3,601 checkpointed trial records per fold and
++10,803 across development. Outer prediction arrays are approximately 20 MiB
+ uncompressed for deterministic tasks and 33 MiB for three-seed tasks, or about
+ 1.1 GiB across all 45 tasks before NPZ compression. Consolidated gzip search
+ records, diagnostics, ledgers, and temporary restart checkpoints are expected
+@@ -125,7 +125,7 @@ The per-task artifact limits remain a fail-closed ceiling, not a storage
+ forecast.
+ 
+ The other high-runtime grids must be profiled too. One gradient-boosting task
+-contains 864 trials, four inner folds, and four target heads: 13,824
++contains 2,160 trials, four inner folds, and four target heads: 34,560
+ `HistGradientBoostingRegressor` fits before the selected outer refit. One
+ factor-Ridge task contains 72 trials, four inner folds, three seeds, and 200
+ firm-target heads: 172,800 small Ridge fits, with one maximum-rank PCA reused
+@@ -153,11 +153,14 @@ the 1,536 structural representations unchanged. A zero winner is at the
+ mathematical endpoint; 0.001 and 0.01 are interior choices. Ranks,
+ initializations, and iteration caps are unchanged. Because resource approval
+ is exact-manifest bound, all four resource-pilot tasks must be rerun and
+-published under the fresh manifest before broader fan-out. Gradient boosting
+-completed 144 of 864 trials in about 3.3 hours, implying roughly
+-20 hours at the observed pace. These are development-only pilot measurements,
+-not task time limits; detached workers may run for days when the manifest
+-remains scientifically admissible.
++published under the fresh manifest before broader fan-out. The completed
++864-trial Gradient Boosting pilot selected both `l2_regularization=10` and
++`max_iter=600` at their upper boundaries. Its versioned follow-up retains every
++prior value and extends regularization through 100 and 1,000 and iteration caps
++through 1,200 and 2,400. The resulting 2,160 trials should be budgeted for at
++least 50 hours at the prior observed pace. These are development-only pilot
++measurements, not task time limits; detached workers may run for days when the
++manifest remains scientifically admissible.
+ 
+ The largest four-year inner-fold preparation retains approximately 1.1 GiB of
+ float32 tensor payload before masks, targets, and temporary numerical-library
+diff --git a/logs/RESEARCH_LOG.md b/logs/RESEARCH_LOG.md
+index ec33a00..eb6e912 100644
+--- a/logs/RESEARCH_LOG.md
++++ b/logs/RESEARCH_LOG.md
+@@ -940,3 +940,20 @@
+   never be approved or fanned out; after this worker reaches terminal evidence,
+   a fresh manifest must bind the corrected source and rerun exactly the four
+   resource pilots before broader Stage A.
++
++## 2026-07-30
++
++- The superseded `taq5m-dev-v3-stagea-2469f2f` Gradient Boosting pilot
++  completed all 864 trials with no failed trial. Its best inner
++  target-balanced MSE was `0.5647586`, but the selected
++  `l2_regularization=10` and `max_iter=600` were both upper search-boundary
++  values. The task correctly published `SEARCH_EXPANSION_REQUIRED` and never
++  opened outer validation. This diagnosis uses development inner-CV evidence
++  only; no candidate, final-holdout, tensor outer, or Stage B economic result
++  was accessed.
++- Expanded the Gradient Boosting grid while retaining every prior value.
++  Regularization is now `[0, 1, 10, 100, 1000]`, and iteration caps are
++  `[50, 100, 300, 600, 1200, 2400]`, making both prior winners interior
++  choices. The full search contains 2,160 trials and 34,560 inner target-head
++  fits. Protocol validation and tests bind the expansion so a future manifest
++  cannot silently regress to the known incomplete search.
+diff --git a/src/microstructure_veer/tournament/contracts.py b/src/microstructure_veer/tournament/contracts.py
+index 9d77246..a8d5df7 100644
+--- a/src/microstructure_veer/tournament/contracts.py
++++ b/src/microstructure_veer/tournament/contracts.py
+@@ -406,14 +406,37 @@ class TournamentProtocol:
+         if self.trial_budget("gradient_boosting") < 100:
+             raise SafetyError("gradient boosting requires at least 100 configurations")
+         gradient_space = self.family_space("gradient_boosting")
++        gradient_l2 = tuple(
++            float(value) for value in gradient_space.get("l2_regularization", ())
++        )
++        gradient_caps = tuple(
++            int(value) for value in gradient_space.get("max_iter", ())
++        )
+         if (
+             len(tuple(gradient_space.get("learning_rate", ()))) < 3
+-            or len(tuple(gradient_space.get("max_iter", ()))) < 3
++            or len(gradient_caps) < 3
+             or gradient_space.get("early_stopping") is not False
+         ):
+             raise SafetyError(
+                 "gradient boosting requires interior learning-rate and iteration choices"
+             )
++        if (
++            not gradient_l2
++            or not all(math.isfinite(value) for value in gradient_l2)
++            or gradient_l2 != tuple(sorted(set(gradient_l2)))
++            or gradient_l2[0] < 0.0
++            or 10.0 not in gradient_l2
++            or not any(value > 10.0 for value in gradient_l2)
++            or not gradient_caps
++            or gradient_caps != tuple(sorted(set(gradient_caps)))
++            or gradient_caps[0] < 1
++            or 600 not in gradient_caps
++            or not any(value > 600 for value in gradient_caps)
++        ):
++            raise SafetyError(
++                "gradient boosting must retain and expand beyond the "
++                "dev-2020 l2 and iteration boundary winners"
++            )
+         for family in ("cp", "tucker"):
+             if self.trial_budget(family) < 100:
+                 raise SafetyError(f"{family} requires at least 100 configurations")
+diff --git a/tests/test_tournament_contract.py b/tests/test_tournament_contract.py
+index 4a0eba8..9676ca6 100644
+--- a/tests/test_tournament_contract.py
++++ b/tests/test_tournament_contract.py
+@@ -30,7 +30,7 @@ def test_tournament_protocol_is_hash_stable_and_complete() -> None:
+         "tucker",
+     }
+     assert first.trial_budget("elastic_net") >= 50
+-    assert first.trial_budget("gradient_boosting") >= 100
++    assert first.trial_budget("gradient_boosting") == 2160
+     assert first.trial_budget("cp") == 360
+     assert first.trial_budget("tucker") == 768
+     assert first.trial_budget("simple_factor") == 12
+@@ -46,6 +46,21 @@ def test_tournament_protocol_is_hash_stable_and_complete() -> None:
+     )
+     assert "alphas" not in first.family_space("simple_factor")
+     assert first.family_space("factor_ridge")["factor_counts"] == list(range(1, 13))
++    assert first.family_space("gradient_boosting")["l2_regularization"] == [
++        0.0,
++        1.0,
++        10.0,
++        100.0,
++        1000.0,
++    ]
++    assert first.family_space("gradient_boosting")["max_iter"] == [
++        50,
++        100,
++        300,
++        600,
++        1200,
++        2400,
++    ]
+     assert first.family_space("cp")["ranks"] == [
+         1,
+         2,
+@@ -95,6 +110,29 @@ def test_protocol_rejects_incomplete_factor_rank_search(tmp_path: Path) -> None:
+         TournamentProtocol.from_yaml(changed)
+ 
+ 
++@pytest.mark.parametrize(
++    ("parameter", "old_boundary_limited_values"),
++    [
++        ("l2_regularization", [0.0, 1.0, 10.0]),
++        ("max_iter", [50, 100, 300, 600]),
++    ],
++)
++def test_protocol_rejects_old_gradient_boosting_boundaries(
++    tmp_path: Path,
++    parameter: str,
++    old_boundary_limited_values: list[float | int],
++) -> None:
++    payload = yaml.safe_load(PROTOCOL.read_text(encoding="utf-8"))
++    payload["model_families"]["gradient_boosting"][
++        parameter
++    ] = old_boundary_limited_values
++    changed = tmp_path / "protocol.yaml"
++    changed.write_text(yaml.safe_dump(payload), encoding="utf-8")
++
++    with pytest.raises(SafetyError, match="expand beyond"):
++        TournamentProtocol.from_yaml(changed)
++
++
+ def test_protocol_rejects_target_ridge_without_natural_endpoint(
+     tmp_path: Path,
+ ) -> None:
+diff --git a/tests/test_tournament_search.py b/tests/test_tournament_search.py
+index cf13b39..9385341 100644
+--- a/tests/test_tournament_search.py
++++ b/tests/test_tournament_search.py
+@@ -77,6 +77,20 @@ def test_gradient_boosting_has_a_nonboundary_configuration() -> None:
+     ) == []
+ 
+ 
++def test_gradient_boosting_prior_boundary_winner_is_now_interior() -> None:
++    assert selected_boundary_flags(
++        PROTOCOL,
++        "gradient_boosting",
++        {
++            "lag_count": 6,
++            "max_depth": None,
++            "learning_rate": 0.03,
++            "l2_regularization": 10.0,
++            "max_iter": 600,
++        },
++    ) == []
++
++
+ def test_natural_structural_upper_bounds_do_not_request_impossible_expansion() -> None:
+     assert selected_boundary_flags(PROTOCOL, "autoregressive_ridge", {"lag_count": 6}) == []
+     assert selected_boundary_flags(PROTOCOL, "simple_factor", {"factor_count": 12})[0][
+-- 
+2.50.1 (Apple Git-155)
+

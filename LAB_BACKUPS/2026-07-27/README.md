@@ -93,6 +93,42 @@ git -C microstructure-veers-2469f2f rev-parse HEAD
 
 The final command must print `2469f2f3e2a942efaa43c810265d8f9f2847dd3b`. The patch applies to parent commit `e3183f4e600e2c923f5591b0d8b019269b976b17`. This update contains only the rank-aware Tucker output-score correction, preserved failure diagnostics, evidence-based CP/Tucker search expansion, tests, documentation, and research log. It contains no licensed data, credentials, caches, runtime outputs, predictions, or model results.
 
+## Gradient Boosting boundary update
+
+Commit `ce099a594c338f9da6b32298a8f8b37ddc769570` is preserved as an
+exact one-commit patch against `fc3b6cc5984f76bcaf756238068f711131decf5e`
+and as a complete-history Git bundle:
+
+- `microstructure-veers-ce099a5.patch`
+- `microstructure-veers-ce099a5.bundle.b64`
+
+Patch SHA-256:
+
+`45c3de8c4d776c7590aaae0a9b7912e815b7237fb519f94a904fd26f4167927e`
+
+Decoded bundle SHA-256:
+
+`17e6e8f4a5c6d7f7aa290e35cb55ff9810759dd5ee2b2cc05bf97a91466d4291`
+
+Base64 bundle SHA-256:
+
+`945ca3678c386d85b52be8cb7a7cb75a96f97085b8c2e9d599f6fded622e04cc`
+
+Restore the complete repository directly on macOS:
+
+```bash
+base64 -D -i microstructure-veers-ce099a5.bundle.b64 -o microstructure-veers-ce099a5.bundle
+git clone -b codex/intraday-liquidity-veer microstructure-veers-ce099a5.bundle microstructure-veers-ce099a5
+git -C microstructure-veers-ce099a5 rev-parse HEAD
+```
+
+The final command must print
+`ce099a594c338f9da6b32298a8f8b37ddc769570`. The update retains every
+prior Gradient Boosting value and extends only the two development boundaries
+selected by the superseded pilot. The exact commit passed all 431 tests in an
+isolated lab worktree. It contains no licensed data, credentials, caches,
+runtime outputs, predictions, or model results.
+
 Apply the source patch after extracting the base archive:
 
 ```bash
